@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import PageHeader from '../PageHeader';
 
 const initialNotifications = [
   {
@@ -75,23 +74,25 @@ const Notifications = () => {
   };
 
   return (
-    // <div className="flex-1 overflow-y-auto flex flex-col bg-[#F8F8FA]">
-    //   <PageHeader
-    //     title="Notifications"
-    //     subtitle="Bookings, payments, platform updates"
-    //     actionLabel="Mark all read"
-    //     onAction={markAllRead}
-    //   />
+    <div className="flex-1 overflow-y-auto bg-[#F4F5F8] p-[24px]">
+      {/* Header with Mark All Read Action on Right */}
+      <div className="flex items-center justify-between mb-[18px]">
+        <div>
+          <div className="font-extrabold text-[22px] leading-none text-[#0A0A0F]">Notifications</div>
+          <div className="text-[14px] leading-none text-[#9090A0] mt-[4px]">
+            Bookings, payments, platform updates
+          </div>
+        </div>
+        <button 
+          onClick={markAllRead}
+          className="px-[16px] py-[8px] bg-white border-[1.5px] border-[#EBEBEF] rounded-[9px] text-[12px] font-bold text-[#D61CA8] hover:bg-[#F8F8FA] transition-colors"
+        >
+          Mark all read
+        </button>
+      </div>
 
-     <div className="flex-1 overflow-y-auto bg-[#F4F5F8] p-[24px]">
-            {/* Title Section matching Credits layout */}
-            <div className="font-extrabold text-[22px] leading-none text-[#0A0A0F] mb-[6px]">Notifications</div>
-            <div className="text-[14px] text-[#9090A0] mb-[20px]">
-               Bookings, payments, platform updates
-            </div>
-
-
-      <div className="p-6 flex flex-col gap-2">
+      {/* Notifications feed list */}
+      <div className="flex flex-col gap-2.5">
         {notifications.map((n) => (
           <div
             key={n.id}
