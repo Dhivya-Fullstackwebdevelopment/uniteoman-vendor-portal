@@ -7,7 +7,7 @@ import Customers from './components/pages/Customers';
 import Services from './components/pages/Services';
 import Payments from './components/pages/Payments';
 import Analytics from './components/pages/Analytics';
-import ServiceConfig from './components/pages/ServiceConfig';
+// import ServiceConfig from './components/pages/ServiceConfig';
 import Reports from './components/pages/Reports';
 import Settings from './components/pages/Settings';
 import Login from './components/Login';
