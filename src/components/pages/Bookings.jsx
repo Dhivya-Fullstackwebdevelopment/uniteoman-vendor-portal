@@ -1,114 +1,83 @@
 import React, { useState } from 'react';
-import PageHeader from '../PageHeader';
-import StatCard from '../StatCard';
 
-const ALL_BOOKINGS = [
-  { id: '#4521', service: 'AC Deep Clean', customer: 'Ahmed Al-Rashdi', pro: { initial: 'M', name: 'Mohammed A.' }, area: 'Qurum', amount: 'OMR 17', status: 'Completed', statusColor: 'emerald', time: '10:24 AM' },
-  { id: '#4520', service: 'Home Cleaning', customer: 'Khalid Al-Farsi', pro: { initial: 'S', name: 'Salim Al-Habsi' }, area: 'Al Khuwair', amount: 'OMR 37', status: 'In Progress', statusColor: 'amber', time: '10:02 AM' },
-  { id: '#4519', service: 'Beauty at Home', customer: 'Sara Al-Balushi', pro: { initial: 'F', name: 'Fatima Al-Z.' }, area: 'MSQ Hills', amount: 'OMR 45', status: 'En Route', statusColor: 'blue', time: '9:51 AM' },
-  { id: '#4518', service: 'Pest Control', customer: 'Omar Al-Jabri', pro: { initial: 'K', name: 'Khalid Al-H.' }, area: 'Ruwi', amount: 'OMR 22', status: 'Scheduled', statusColor: 'purple', time: '9:40 AM' },
-  { id: '#4517', service: 'Plumbing Fix', customer: 'Nasser Al-Rawahi', pro: { initial: 'A', name: 'Ali Al-Maamari' }, area: 'Bowsher', amount: 'OMR 15', status: 'Completed', statusColor: 'emerald', time: '9:15 AM' },
-  { id: '#4516', service: 'Electrical Repair', customer: 'Yousef Al-Kindi', pro: { initial: 'K', name: 'Khalid Al-Farsi' }, area: 'Seeb', amount: 'OMR 28', status: 'Completed', statusColor: 'emerald', time: '8:58 AM' },
-  { id: '#4515', service: 'Home Cleaning', customer: 'Laila Al-Amri', pro: { initial: 'S', name: 'Salim Al-Habsi' }, area: 'Azaiba', amount: 'OMR 33', status: 'Cancelled', statusColor: 'red', time: '8:40 AM' },
-  { id: '#4514', service: 'AC Deep Clean', customer: 'Faisal Al-Harthy', pro: { initial: 'M', name: 'Mohammed A.' }, area: 'Ghubra', amount: 'OMR 17', status: 'Completed', statusColor: 'emerald', time: '8:22 AM' },
+const TABS = [
+  { label: 'Today', count: 3 },
+  { label: 'Upcoming', count: 5 },
+  { label: 'Completed', count: 847 },
+  { label: 'Cancelled', count: 4 },
 ];
 
-const STATUS_TABS = ['All', 'Completed', 'In Progress', 'En Route', 'Scheduled', 'Cancelled'];
-
-const statusStyles = {
-  emerald: 'bg-emerald-100 text-emerald-600',
-  amber: 'bg-amber-100 text-amber-600',
-  blue: 'bg-blue-100 text-blue-600',
-  purple: 'bg-purple-100 text-purple-600',
-  red: 'bg-red-100 text-red-600',
-};
-
-const proGradients = [
-  'from-primary to-secondary',
-  'from-accent to-secondary',
-  'from-primary to-accent',
-  'from-secondary to-cyan-400',
-  'from-emerald-500 to-accent',
-  'from-amber-500 to-red-500',
+const JOBS = [
+  { icon: '❄️', iconBg: '#DBEAFE', borderColor: '#10B981', name: 'AC Deep Cleaning', meta: 'Ahmed Al-Rashdi · Today 10:00 AM · Qurum', price: 'OMR 17', status: 'Done', statusTone: 'bg-emerald-100 text-emerald-600', secondAction: 'Receipt' },
+  { icon: '⚡', iconBg: '#FEF3C7', borderColor: '#4B6EF5', name: 'Electrical Repair', meta: 'Khalid Al-Farsi · Today 2:00 PM · Al Khuwair', price: 'OMR 20', status: 'Active', statusTone: 'bg-blue-100 text-blue-600', secondAction: 'Complete' },
+  { icon: '🔧', iconBg: '#CFFAFE', borderColor: '#F59E0B', name: 'Plumbing Fix', meta: 'Omar Al-Jabri · Today 4:30 PM · Bowsher', price: 'OMR 14', status: 'Upcoming', statusTone: 'bg-amber-100 text-amber-600', secondAction: 'Navigate' },
+  { icon: '💅', iconBg: '#FCE7F3', borderColor: '#8B2EF5', name: 'Beauty — Manicure', meta: 'Sara Al-Balushi · Sat 12 Jul 3pm · MSQ Hills', price: 'OMR 15', status: 'Scheduled', statusTone: 'bg-purple-100 text-purple-600', secondAction: 'Navigate' },
+  { icon: '🪲', iconBg: '#EDE9FE', borderColor: '#8B2EF5', name: 'Pest Control', meta: 'Ali Al-Habsi · Sun 13 Jul 10am · Al Ghubrah', price: 'OMR 22', status: 'Scheduled', statusTone: 'bg-purple-100 text-purple-600', secondAction: 'Navigate' },
 ];
 
 const Bookings = () => {
-  const [activeTab, setActiveTab] = useState('All');
-
-  const filtered = activeTab === 'All'
-    ? ALL_BOOKINGS
-    : ALL_BOOKINGS.filter((b) => b.status === activeTab);
+  const [activeTab, setActiveTab] = useState('Today');
 
   return (
-    <div className="flex-1 overflow-y-auto flex flex-col bg-[#F8F8FA]">
-      <PageHeader title="Bookings" subtitle="Sunday, 29 June 2025 · Muscat, Oman" actionLabel="+ New Booking" />
-
-      <div className="p-6 flex flex-col gap-5">
-        {/* Stat strip */}
-        <div className="grid grid-cols-4 gap-5">
-          <StatCard label="Total Bookings Today" value="147" change="↑ 12%" gradient="from-[#D61CA8] to-[#8B2EF5]" icon={<span className="text-primary">📅</span>} />
-          <StatCard label="Completed" value="98" change="↑ 6%" gradient="from-emerald-500 to-accent" icon={<span>✅</span>} />
-          <StatCard label="In Progress / En Route" value="31" gradient="from-accent to-secondary" icon={<span>🚗</span>} />
-          <StatCard label="Cancelled" value="4" change="↓ 2%" gradient="from-amber-500 to-red-500" icon={<span>⚠️</span>} />
+    <div className="flex-1 overflow-y-auto bg-[#F4F5F8] p-[24px]">
+      <div className="flex items-center justify-between mb-[18px]">
+        <div>
+          <div className="font-extrabold text-[22px] leading-none text-[#0A0A0F]">My Bookings</div>
+          <div className="text-[14px] leading-none text-[#9090A0] mt-[4px]">All jobs — today, upcoming, completed, cancelled</div>
         </div>
+        <div className="flex gap-[9px]">
+          <button className="px-[16px] py-[8px] bg-white border-[1.5px] border-[#EBEBEF] rounded-[9px] text-[12px] font-medium text-[#6B7280]">Status ▾</button>
+          <button className="px-[16px] py-[8px] bg-white border-[1.5px] border-[#EBEBEF] rounded-[9px] text-[12px] font-medium text-[#6B7280]">Category ▾</button>
+          <button className="px-[16px] py-[8px] bg-white border-[1.5px] border-[#EBEBEF] rounded-[9px] text-[12px] font-medium text-[#6B7280]">Date ▾</button>
+        </div>
+      </div>
 
-        {/* Table card */}
-        <div className="bg-white rounded-2xl p-[22px] shadow-[0_1px_8px_rgba(0,0,0,0.05)]">
-          <div className="flex items-center justify-between mb-[18px]">
-            <div className="font-bold text-base leading-none text-[#0A0A0F]">All Bookings</div>
-            <div className="flex gap-2 items-center">
-              {STATUS_TABS.map((tab) => (
-                <div
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-3 py-1.5 rounded-lg font-semibold text-[11px] leading-none cursor-pointer transition-colors ${
-                    activeTab === tab
-                      ? 'bg-gradient-to-r from-[#D61CA8] to-[#8B2EF5] text-white'
-                      : 'bg-[#F8F8FA] text-[#9090A0] hover:text-[#0A0A0F]'
-                  }`}
-                >
-                  {tab}
-                </div>
-              ))}
+      <div className="flex bg-white rounded-[13px] overflow-hidden mb-[16px] shadow-[0_1px_4px_rgba(0,0,0,0.05)] w-fit">
+        {TABS.map((tab) => (
+          <button
+            key={tab.label}
+            onClick={() => setActiveTab(tab.label)}
+            className={`px-[22px] py-[10px] text-[13px] ${
+              activeTab === tab.label
+                ? 'bg-gradient-to-r from-[#D61CA8] to-[#8B2EF5] font-bold text-white'
+                : 'font-medium text-[#9090A0]'
+            }`}
+          >
+            {tab.label} ({tab.count})
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-[10px]">
+        {JOBS.map((j) => (
+          <div
+            key={j.name}
+            className="flex items-center gap-[14px] bg-white rounded-[14px] p-[15px] shadow-[0_1px_4px_rgba(0,0,0,0.04)]"
+            style={{ borderLeft: `4px solid ${j.borderColor}` }}
+          >
+            <div className="w-[46px] h-[46px] rounded-[11px] flex items-center justify-center text-[21px] flex-shrink-0" style={{ background: j.iconBg }}>
+              {j.icon}
+            </div>
+            <div className="flex-1">
+              <div className="text-[15px] font-bold text-[#0A0A0F]">{j.name}</div>
+              <div className="text-[12px] text-[#9090A0] mt-[2px]">{j.meta}</div>
+            </div>
+            <div className="text-[15px] font-bold text-[#D61CA8]">{j.price}</div>
+            <div className={`px-[10px] py-[4px] rounded text-[10px] font-bold ${j.statusTone}`}>{j.status}</div>
+            <div className="flex gap-[5px]">
+              <button className="px-[11px] py-[6px] bg-[#F8F8FA] border border-[#EBEBEF] rounded-[7px] text-[11px] font-semibold text-[#555]">View</button>
+              {j.secondAction === 'Receipt' && (
+                <button className="px-[11px] py-[6px] bg-[#D1FAE5] rounded-[7px] text-[11px] font-bold text-[#059669]">Receipt</button>
+              )}
+              {j.secondAction === 'Complete' && (
+                <button className="px-[11px] py-[6px] bg-gradient-to-r from-[#D61CA8] to-[#8B2EF5] rounded-[7px] text-[11px] font-bold text-white">Complete</button>
+              )}
+              {j.secondAction === 'Navigate' && (
+                <button className="px-[11px] py-[6px] bg-gradient-to-r from-[#D61CA8] to-[#8B2EF5] rounded-[7px] text-[11px] font-bold text-white">Navigate</button>
+              )}
             </div>
           </div>
-
-          <div className="grid grid-cols-[70px_1.2fr_1fr_90px_80px_80px_100px] gap-2 px-3 py-2 bg-[#F8F8FA] rounded-xl mb-2">
-            {['ID', 'Service · Customer', 'Professional', 'Area', 'Time', 'Amount', 'Status'].map((h) => (
-              <span key={h} className="font-semibold text-[10px] leading-none text-[#9090A0] uppercase tracking-[0.6px]">{h}</span>
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-1">
-            {filtered.map((booking, index) => (
-              <div
-                key={booking.id}
-                className={`grid grid-cols-[70px_1.2fr_1fr_90px_80px_80px_100px] gap-2 px-3 py-2.5 rounded-xl items-center ${index % 2 === 1 ? 'bg-[#FAFAFA]' : ''}`}
-              >
-                <span className="font-semibold text-xs leading-none text-[#9090A0]">{booking.id}</span>
-                <div>
-                  <div className="font-semibold text-xs leading-[1.2] text-[#0A0A0F]">{booking.service}</div>
-                  <div className="font-normal text-[10px] leading-none text-[#9090A0] mt-0.5">{booking.customer}</div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className={`w-[22px] h-[22px] rounded-full bg-gradient-to-br ${proGradients[index % proGradients.length]} flex items-center justify-center font-bold text-[9px] text-white flex-shrink-0`}>
-                    {booking.pro.initial}
-                  </div>
-                  <span className="font-medium text-[11px] leading-none text-[#0A0A0F]">{booking.pro.name}</span>
-                </div>
-                <span className="font-normal text-[11px] leading-none text-[#6B7280]">{booking.area}</span>
-                <span className="font-normal text-[11px] leading-none text-[#6B7280]">{booking.time}</span>
-                <span className="font-bold text-xs leading-none text-[#0A0A0F]">{booking.amount}</span>
-                <div className={`px-2.5 py-1 rounded-md font-bold text-[10px] leading-none text-center ${statusStyles[booking.statusColor]}`}>
-                  {booking.status}
-                </div>
-              </div>
-            ))}
-            {filtered.length === 0 && (
-              <div className="py-10 text-center font-medium text-sm text-[#9090A0]">No bookings match this filter.</div>
-            )}
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );

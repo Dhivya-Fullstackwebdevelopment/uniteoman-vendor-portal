@@ -45,7 +45,7 @@ const Login = ({ onLogin }) => {
         <div className="flex flex-col items-center mb-7">
           <img src={logo} className="h-8 w-auto mb-3" alt="UniteOman" />
           <div className="font-normal text-[11px] leading-none text-[#9090A0] tracking-[0.5px]">
-            Admin Console
+            Vendor Portal
           </div>
         </div>
 

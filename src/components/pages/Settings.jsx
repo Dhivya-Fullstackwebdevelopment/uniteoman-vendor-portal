@@ -1,101 +1,127 @@
 import React, { useState } from 'react';
 import PageHeader from '../PageHeader';
 
-const Toggle = ({ on, onClick }) => (
-  <div
-    onClick={onClick}
-    className={`w-9 h-5 rounded-full cursor-pointer relative transition-colors flex-shrink-0 ${on ? 'bg-gradient-to-r from-[#D61CA8] to-[#8B2EF5]' : 'bg-[#E5E7EB]'}`}
-  >
-    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${on ? 'left-[18px]' : 'left-0.5'}`} />
+const ReadOnlyField = ({ label, value }) => (
+  <div className="mb-2">
+    <div className="font-semibold text-[9px] leading-none text-[#9090A0] uppercase tracking-wide mb-1">{label}</div>
+    <div className="bg-[#F8F8FA] border border-[#EBEBEF] rounded-lg px-2.5 py-2 font-normal text-[11px] leading-none text-[#0A0A0F]">
+      {value}
+    </div>
   </div>
 );
 
-const Field = ({ label, value }) => (
-  <div>
-    <div className="font-medium text-[11px] leading-none text-[#9090A0] mb-2">{label}</div>
-    <input
-      defaultValue={value}
-      className="w-full bg-[#F8F8FA] border border-[#EBEBEF] rounded-xl px-3.5 py-2.5 font-medium text-sm text-[#0A0A0F] outline-none focus:border-primary transition-colors"
-    />
+const Toggle = ({ on, onClick }) => (
+  <div
+    onClick={onClick}
+    className={`w-8 h-[17px] rounded-full cursor-pointer relative transition-colors flex-shrink-0 ${on ? 'bg-gradient-to-r from-[#D61CA8] to-[#8B2EF5]' : 'bg-[#E5E7EB]'
+      }`}
+  >
+    <div className={`absolute top-0.5 w-[13px] h-[13px] rounded-full bg-white shadow transition-all ${on ? 'left-[17px]' : 'left-0.5'}`} />
   </div>
 );
 
 const Settings = () => {
+  const [status, setStatus] = useState('online');
   const [toggles, setToggles] = useState({
-    emailAlerts: true,
-    smsAlerts: false,
-    bookingAlerts: true,
-    weeklyDigest: true,
-    twoFactor: true,
+    newBooking: true,
+    paymentReceived: true,
+    reviewPosted: true,
+    creditsLow: true,
+    weeklyEarnings: true,
+    aiTips: true,
   });
 
   const flip = (key) => setToggles((prev) => ({ ...prev, [key]: !prev[key] }));
 
   return (
-    <div className="flex-1 overflow-y-auto flex flex-col bg-[#F8F8FA]">
-      <PageHeader title="Settings" subtitle="Manage your admin account and preferences" actionLabel="Save Changes" />
+    // <div className="flex-1 overflow-y-auto flex flex-col bg-[#F8F8FA]">
+    //   <PageHeader title="Settings" subtitle="Manage your vendor profile, availability and payouts" />
+    <div className="flex-1 overflow-y-auto bg-[#F4F5F8] p-[24px]">
+      {/* Title Section matching Credits layout */}
+      <div className="font-extrabold text-[22px] leading-none text-[#0A0A0F] mb-[6px]">Settings</div>
+      <div className="text-[14px] text-[#9090A0] mb-[20px]">
+        Manage your vendor profile, availability and payouts
+      </div>
 
-      <div className="p-6 flex flex-col gap-5">
-        <div className="grid grid-cols-[1fr_1fr] gap-5">
+
+      <div className="p-6">
+        <div className="grid grid-cols-3 gap-2.5">
           {/* Profile */}
-          <div className="bg-white rounded-2xl p-[22px] shadow-[0_1px_8px_rgba(0,0,0,0.05)]">
-            <div className="font-bold text-base leading-none text-[#0A0A0F] mb-5">Admin Profile</div>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center font-bold text-lg text-white">
-                A
+          <div className="bg-white rounded-2xl p-3.5 shadow-[0_1px_5px_rgba(0,0,0,0.05)]">
+            <div className="font-bold text-xs leading-none text-[#0A0A0F] mb-3">Profile</div>
+            <ReadOnlyField label="Company Name" value="Al Ameera Technical" />
+            <ReadOnlyField label="Owner" value="Mohammed Al-Balushi" />
+            <ReadOnlyField label="Phone" value="+968 9234 5678" />
+            <ReadOnlyField label="Email" value="m@ameera-tech.om" />
+            <ReadOnlyField label="CR Number" value="1234567 ✓" />
+            <ReadOnlyField label="Oman ID" value="Verified (ROP) ✓" />
+            <ReadOnlyField label="Type" value="LLC Company" />
+          </div>
+
+          {/* Availability */}
+          <div className="bg-white rounded-2xl p-3.5 shadow-[0_1px_5px_rgba(0,0,0,0.05)]">
+            <div className="font-bold text-xs leading-none text-[#0A0A0F] mb-3">Availability</div>
+            <ReadOnlyField label="Working Hours" value="8:00 AM – 7:00 PM" />
+            <ReadOnlyField label="Working Days" value="Sat – Thu" />
+            <ReadOnlyField label="Areas Served" value="Qurum, Al Khuwair, Bowsher, MSQ, Al Ghubrah" />
+            <ReadOnlyField label="Max Jobs/Day" value="4" />
+            <ReadOnlyField label="Emergency Callouts" value="Yes (+OMR 5)" />
+
+            <div className="mt-3">
+              <div className="font-semibold text-[9px] leading-none text-[#9090A0] uppercase tracking-wide mb-1.5">
+                Online Status
               </div>
-              <div>
-                <div className="font-semibold text-sm leading-none text-[#0A0A0F]">Admin User</div>
-                <div className="font-normal text-xs leading-none text-[#9090A0] mt-1.5">Super Admin</div>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => setStatus('online')}
+                  className={`px-3.5 py-1.5 rounded-md font-bold text-[10px] leading-none transition-colors ${status === 'online'
+                      ? 'bg-gradient-to-r from-[#10B981] to-[#4B6EF5] text-white'
+                      : 'bg-[#F8F8FA] border border-[#EBEBEF] text-[#6B7280]'
+                    }`}
+                >
+                  🟢 Online
+                </button>
+                <button
+                  onClick={() => setStatus('offline')}
+                  className={`px-3.5 py-1.5 rounded-md font-semibold text-[10px] leading-none transition-colors ${status === 'offline'
+                      ? 'bg-gradient-to-r from-[#10B981] to-[#4B6EF5] text-white'
+                      : 'bg-[#F8F8FA] border border-[#EBEBEF] text-[#6B7280]'
+                    }`}
+                >
+                  Go Offline
+                </button>
               </div>
-              <div className="ml-auto px-3 py-2 bg-[#F8F8FA] border border-[#EBEBEF] rounded-lg font-semibold text-[11px] leading-none text-[#6B7280] cursor-pointer hover:border-primary hover:text-primary transition-colors">
-                Change Photo
-              </div>
-            </div>
-            <div className="flex flex-col gap-4">
-              <Field label="Full Name" value="Admin User" />
-              <Field label="Email Address" value="admin@uniteoman.com" />
-              <Field label="Phone Number" value="+968 9123 4567" />
             </div>
           </div>
 
-          {/* Security */}
-          <div className="bg-white rounded-2xl p-[22px] shadow-[0_1px_8px_rgba(0,0,0,0.05)]">
-            <div className="font-bold text-base leading-none text-[#0A0A0F] mb-5">Security</div>
-            <div className="flex flex-col gap-4 mb-5">
-              <Field label="Current Password" value="••••••••••" />
-              <Field label="New Password" value="" />
-            </div>
-            <div className="flex items-center justify-between bg-[#F8F8FA] rounded-xl p-3.5">
-              <div>
-                <div className="font-medium text-xs leading-none text-[#0A0A0F]">Two-Factor Authentication</div>
-                <div className="font-normal text-[10px] leading-none text-[#9090A0] mt-1.5">Adds an extra layer of security to your account</div>
-              </div>
-              <Toggle on={toggles.twoFactor} onClick={() => flip('twoFactor')} />
-            </div>
-          </div>
-        </div>
+          {/* Bank & Notifications */}
+          <div className="bg-white rounded-2xl p-3.5 shadow-[0_1px_5px_rgba(0,0,0,0.05)]">
+            <div className="font-bold text-xs leading-none text-[#0A0A0F] mb-3">Bank &amp; Notifications</div>
 
-        {/* Notifications */}
-        <div className="bg-white rounded-2xl p-[22px] shadow-[0_1px_8px_rgba(0,0,0,0.05)]">
-          <div className="font-bold text-base leading-none text-[#0A0A0F] mb-1">Notifications</div>
-          <div className="font-normal text-xs leading-none text-[#9090A0] mb-5">Choose how you want to be notified about platform activity</div>
+            <div className="bg-gradient-to-br from-[#0A0A0F] to-[#0a1240] rounded-xl p-3.5 mb-3">
+              <div className="font-bold text-xs leading-none text-white">Bank of Muscat</div>
+              <div className="font-normal text-[9px] leading-none text-white/45 mt-1 mb-2">Primary payout account</div>
+              <div className="font-medium text-[10px] leading-none text-white/65">IBAN: OM80 0001 0000 2345 6789</div>
+              <button className="mt-2 px-2.5 py-1 bg-white/10 rounded-md font-semibold text-[9px] leading-none text-white/70 hover:bg-white/15 transition-colors">
+                Change Bank
+              </button>
+            </div>
 
-          <div className="flex flex-col gap-1">
-            {[
-              { key: 'emailAlerts', label: 'Email Alerts', desc: 'Get important updates sent to your inbox' },
-              { key: 'smsAlerts', label: 'SMS Alerts', desc: 'Receive text messages for urgent issues' },
-              { key: 'bookingAlerts', label: 'Live Booking Alerts', desc: 'Instant notification when a new booking comes in' },
-              { key: 'weeklyDigest', label: 'Weekly Digest', desc: 'A summary of performance every Monday' },
-            ].map((row, i) => (
-              <div key={row.key} className={`flex items-center justify-between px-3 py-3.5 rounded-xl ${i % 2 === 1 ? 'bg-[#FAFAFA]' : ''}`}>
-                <div>
-                  <div className="font-medium text-xs leading-none text-[#0A0A0F]">{row.label}</div>
-                  <div className="font-normal text-[10px] leading-none text-[#9090A0] mt-1.5">{row.desc}</div>
+            <div className="flex flex-col">
+              {[
+                { key: 'newBooking', label: 'New booking alert' },
+                { key: 'paymentReceived', label: 'Payment received' },
+                { key: 'reviewPosted', label: 'Review posted' },
+                { key: 'creditsLow', label: 'Credits low warning' },
+                { key: 'weeklyEarnings', label: 'Weekly earnings' },
+                { key: 'aiTips', label: 'AI tips' },
+              ].map((row) => (
+                <div key={row.key} className="flex items-center justify-between py-1.5 border-b border-[#F5F5F5] last:border-b-0">
+                  <span className="font-medium text-[10px] leading-none text-[#0A0A0F]">{row.label}</span>
+                  <Toggle on={toggles[row.key]} onClick={() => flip(row.key)} />
                 </div>
-                <Toggle on={toggles[row.key]} onClick={() => flip(row.key)} />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>

@@ -11,18 +11,34 @@ import ServiceConfig from './components/pages/ServiceConfig';
 import Reports from './components/pages/Reports';
 import Settings from './components/pages/Settings';
 import Login from './components/Login';
+import Credits from './components/pages/Credits';
+import LiveMap from './components/pages/LiveMap';
+import Reviews from './components/pages/Reviews';
+import Notifications from './components/pages/Notifications';
+
 
 
 const PAGES = {
   dashboard: Dashboard,
   bookings: Bookings,
-  professionals: Professionals,
-  customers: Customers,
   services: Services,
   payments: Payments,
+
+  
+  credits: Credits,
+  'live-map': LiveMap,
+  reviews: Reviews,
+  payments: Payments,
   analytics: Analytics,
-  'service-config': ServiceConfig,
-  reports: Reports,
+  notifications: Notifications,
+  
+  // professionals: Professionals,
+  // customers: Customers,
+  // services: Services,
+  // payments: Payments,
+  // analytics: Analytics,
+  // 'service-config': ServiceConfig,
+  // reports: Reports,
   settings: Settings,
 };
 
