@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import logo from '../assets/uniteoman-logo.png';
-
-// Demo credentials — swap this block out for a real API call when you wire up a backend.
-const DEMO_EMAIL = 'admin@uniteoman.com';
-const DEMO_PASSWORD = 'admin123';
+import { vendorLogin } from "../api/apiService";
+import toast from 'react-hot-toast';
 
 const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
@@ -13,30 +11,40 @@ const Login = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
-    if (!email || !password) {
-      setError('Please enter both email and password.');
+    
+    // Basic validation
+    if (!email.trim()) {
+      setError('Please enter your email address');
+      return;
+    }
+    if (!password.trim()) {
+      setError('Please enter your password');
       return;
     }
 
-    setLoading(true);
-    // Simulate an auth request — replace with a real API call.
-    setTimeout(() => {
-      setLoading(false);
-      if (email.trim().toLowerCase() === DEMO_EMAIL && password === DEMO_PASSWORD) {
+    try {
+      setLoading(true);
+      const response = await vendorLogin(email, password);
+
+      if (response.status === "success") {
         onLogin({ email, remember });
-      } else {
-        setError('Incorrect email or password. Please try again.');
+        toast.success(response.message || "Login successful!");
       }
-    }, 500);
+    } catch (error) {
+      const errorMessage = error.message || "Login failed. Please try again.";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-[#0A0A0F] relative overflow-hidden">
-      {/* Ambient gradient glow, matches brand palette */}
+      {/* Ambient gradient glow */}
       <div className="absolute -top-40 -left-40 w-[480px] h-[480px] rounded-full bg-primary/20 blur-[120px]" />
       <div className="absolute -bottom-40 -right-40 w-[480px] h-[480px] rounded-full bg-accent/20 blur-[120px]" />
 
@@ -58,7 +66,7 @@ const Login = ({ onLogin }) => {
           {/* Email */}
           <div>
             <div className="font-medium text-[11px] leading-none text-[#9090A0] mb-2">Email Address</div>
-            <div className="flex items-center gap-2 bg-[#F8F8FA] border border-[#EBEBEF] rounded-xl px-3.5 py-3 focus-within:border-primary transition-colors">
+            <div className={`flex items-center gap-2 bg-[#F8F8FA] border rounded-xl px-3.5 py-3 focus-within:border-primary transition-colors ${error && !email ? 'border-red-500' : 'border-[#EBEBEF]'}`}>
               <svg className="w-4 h-4 text-[#9090A0] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 7l9 6 9-6M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z" />
               </svg>
@@ -66,7 +74,7 @@ const Login = ({ onLogin }) => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@uniteoman.com"
+                placeholder="vendor@uniteoman.com"
                 autoComplete="username"
                 className="bg-transparent border-none outline-none w-full font-medium text-sm text-[#0A0A0F] placeholder:text-[#B0B0C0] placeholder:font-normal"
               />
@@ -79,7 +87,7 @@ const Login = ({ onLogin }) => {
               <span className="font-medium text-[11px] leading-none text-[#9090A0]">Password</span>
               <span className="font-semibold text-[11px] leading-none text-primary cursor-pointer">Forgot password?</span>
             </div>
-            <div className="flex items-center gap-2 bg-[#F8F8FA] border border-[#EBEBEF] rounded-xl px-3.5 py-3 focus-within:border-primary transition-colors">
+            <div className={`flex items-center gap-2 bg-[#F8F8FA] border rounded-xl px-3.5 py-3 focus-within:border-primary transition-colors ${error && !password ? 'border-red-500' : 'border-[#EBEBEF]'}`}>
               <svg className="w-4 h-4 text-[#9090A0] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
                 <rect x="4" y="10" width="16" height="10" rx="2" />
                 <path d="M8 10V7a4 4 0 018 0v3" strokeLinecap="round" />
@@ -144,7 +152,7 @@ const Login = ({ onLogin }) => {
         </form>
 
         <div className="mt-6 text-center font-normal text-[11px] leading-none text-[#B0B0C0]">
-          Demo credentials: admin@uniteoman.com / admin123
+          Vendor Login
         </div>
       </div>
     </div>
