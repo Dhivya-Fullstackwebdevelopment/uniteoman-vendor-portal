@@ -38,7 +38,6 @@ const Bookings = () => {
     try {
       const url = `${API_BASE_URL}${SERVICES_ENDPOINT}`;
       const response = await getData(url);
-      // response structure: { status, message, data: [...] }
       if (response && Array.isArray(response.data)) {
         setCategories(response.data);
       } else if (Array.isArray(response)) {
@@ -61,7 +60,6 @@ const Bookings = () => {
       const url = `${API_BASE_URL}${BOOKINGS_ENDPOINT}?${params.toString()}`;
       const data = await getData(url);
 
-      // Adjust based on your actual API response structure
       if (Array.isArray(data)) {
         setBookings(data);
       } else if (data && Array.isArray(data.data)) {
@@ -119,13 +117,7 @@ const Bookings = () => {
   };
 
   const getTabCount = (tabKey) => {
-    const map = {
-      today: bookings.filter((b) => b.status?.toLowerCase() === 'today').length,
-      upcoming: bookings.filter((b) => b.status?.toLowerCase() === 'upcoming').length,
-      completed: bookings.filter((b) => b.status?.toLowerCase() === 'completed').length,
-      cancelled: bookings.filter((b) => b.status?.toLowerCase() === 'cancelled').length,
-    };
-    return map[tabKey] || 0;
+    return bookings.filter((b) => b.status?.toLowerCase() === tabKey).length;
   };
 
   // filter bookings for the active tab (client-side filtering)
@@ -246,17 +238,21 @@ const Bookings = () => {
 
   // ---------- render booking item ----------
   const renderBookingItem = (booking) => {
-    // fallback values if API returns different field names
     const name = booking.service_name || booking.name || 'Service';
-    const meta =
-      booking.customer_name ||
-      booking.client_name ||
-      booking.meta ||
-      `${booking.customer || 'Customer'} · ${booking.time || ''} · ${booking.location || ''}`;
-    const price =
-      booking.price || booking.amount || booking.total || 'OMR 0';
-    const status = booking.status || 'Scheduled';
-    const statusTone = getStatusTone(status);
+    
+    // Extracted values matching API fields
+    const customer = booking.customer_name || booking.client_name || 'Customer';
+    const dateTime = booking.date_time || booking.time || '';
+    const location = booking.location || '';
+    
+    // Constructed metadata incorporating date_time
+    const metaParts = [customer, dateTime, location].filter(Boolean);
+    const meta = metaParts.length > 0 ? metaParts.join(' · ') : 'No details available';
+
+    const price = booking.price || booking.amount || booking.total || 'OMR 0';
+    const displayStatus = booking.status_display || booking.status || 'Scheduled';
+    const statusTone = getStatusTone(booking.status || displayStatus);
+    
     const icon = booking.icon || '🔧';
     const iconBg = booking.icon_bg || '#F4F5F8';
     const borderColor = booking.border_color || '#8B2EF5';
@@ -280,7 +276,7 @@ const Bookings = () => {
         </div>
         <div className="text-[15px] font-bold text-[#D61CA8]">{price}</div>
         <div className={`px-[10px] py-[4px] rounded text-[10px] font-bold ${statusTone}`}>
-          {status}
+          {displayStatus}
         </div>
         <div className="flex gap-[5px]">
           <button className="px-[11px] py-[6px] bg-[#F8F8FA] border border-[#EBEBEF] rounded-[7px] text-[11px] font-semibold text-[#555]">
