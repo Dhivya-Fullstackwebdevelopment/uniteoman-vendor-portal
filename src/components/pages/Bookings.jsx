@@ -257,7 +257,7 @@ const Bookings = () => {
           Date {displayDate ? `: ${displayDate}` : ''} ▾
         </button>
         {showDateDropdown && (
-          <div className="absolute top-full left-0 mt-1 bg-white border border-[#EBEBEF] rounded-[9px] shadow-lg z-20 p-3 min-w-[200px]">
+          <div className="absolute top-full right-1 mt-1 bg-white border border-[#EBEBEF] rounded-[9px] shadow-lg z-20 p-3 min-w-[200px]">
             <input
               ref={dateInputRef}
               type="date"
@@ -452,7 +452,7 @@ const Bookings = () => {
 
   // ─── Main Render ──────────────────────────────────────
   return (
-    <div className="flex-1 overflow-y-auto bg-[#F4F5F8] p-[24px]">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden bg-[#F4F5F8] pt-6 pb-6 pl-6 pr-8">
       {/* Header with filters */}
       <div className="flex items-center justify-between mb-[18px] flex-wrap gap-2">
         <div>
