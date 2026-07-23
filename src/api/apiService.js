@@ -7,9 +7,9 @@ const api = axios.create({
   },
 });
 
-// Automatically attach token
+// Automatically attach vendor token
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("access_token");
+  const token = localStorage.getItem("access_token_vendor"); // <- fixed key
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -25,7 +25,7 @@ export const vendorLogin = async (email, password) => {
     password,
   });
 
-  // Store tokens
+  // Store tokens (keys match the interceptor now)
   localStorage.setItem("access_token_vendor", response.data.access);
   localStorage.setItem("refresh_token_vendor", response.data.refresh);
 
