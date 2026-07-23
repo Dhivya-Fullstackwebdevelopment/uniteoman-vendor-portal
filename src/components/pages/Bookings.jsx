@@ -53,7 +53,10 @@ const Bookings = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const pageSize = 10; // matches the API default
+  const pageSize = 10;
+
+  // Tab counts (for all tabs)
+  const [tabCounts, setTabCounts] = useState({});
 
   // Dropdown toggles
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
@@ -71,6 +74,8 @@ const Bookings = () => {
       await putData(url, { status: newStatus });
       // Refresh the current page after status change
       await fetchBookings(currentPage);
+      // Also refresh tab counts
+      await fetchTabCounts();
     } catch (err) {
       console.error('Failed to update status:', err);
     }
@@ -91,12 +96,32 @@ const Bookings = () => {
     }
   }, []);
 
+  // ─── Fetch tab counts ──────────────────────────────────
+  const fetchTabCounts = useCallback(async () => {
+    try {
+      const results = await Promise.all(
+        TABS.map(async (tab) => {
+          const params = new URLSearchParams();
+          if (tab !== 'all') params.append('status', tab);
+          if (categoryFilter) params.append('category_id', categoryFilter);
+          if (dateFilter) params.append('date', dateFilter);
+          const url = `${API_BASE_URL}${BOOKINGS_ENDPOINT}?${params.toString()}`;
+          const res = await getData(url);
+          const count = res?.total_count ?? (Array.isArray(res?.data) ? res.data.length : (Array.isArray(res) ? res.length : 0));
+          return [tab, count];
+        })
+      );
+      setTabCounts(Object.fromEntries(results));
+    } catch (err) {
+      console.error('Failed to fetch tab counts:', err);
+    }
+  }, [categoryFilter, dateFilter]);
+
   // ─── Fetch bookings (server‑side pagination) ──────────
   const fetchBookings = useCallback(async (page = 1) => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      // Active tab -> status parameter (except 'all')
       if (activeTab !== 'all') {
         params.append('status', activeTab);
       }
@@ -108,14 +133,12 @@ const Bookings = () => {
       const url = `${API_BASE_URL}${BOOKINGS_ENDPOINT}?${params.toString()}`;
       const response = await getData(url);
 
-      // API response structure: { data: [], total_count, total_pages, current_page, ... }
       if (response && response.data) {
         setBookings(response.data);
         setTotalCount(response.total_count || 0);
         setTotalPages(response.total_pages || 1);
         setCurrentPage(response.current_page || page);
       } else if (Array.isArray(response)) {
-        // fallback if API returns plain array
         setBookings(response);
         setTotalCount(response.length);
         setTotalPages(1);
@@ -142,10 +165,11 @@ const Bookings = () => {
     fetchCategories();
   }, [fetchCategories]);
 
-  // When filters/tab change, reset to page 1 and fetch
+  // When filters/tab change, fetch counts and bookings
   useEffect(() => {
+    fetchTabCounts();
     fetchBookings(1);
-  }, [fetchBookings]); // fetchBookings includes activeTab, categoryFilter, dateFilter
+  }, [fetchTabCounts, fetchBookings]); // fetchBookings depends on activeTab, category, date
 
   // ─── Click‑outside to close dropdowns ──────────────────
   useEffect(() => {
@@ -179,21 +203,6 @@ const Bookings = () => {
       confirmed: 'bg-green-100 text-green-700',
     };
     return map[status?.toLowerCase()] || 'bg-gray-100 text-gray-600';
-  };
-
-  // ─── Tab counts (based on the current filtered data – we'll use totalCount for 'all', others need separate calls) ──
-  // For simplicity, we'll compute counts from the fetched data (which is only one page). Better to use separate count API, but we'll skip for now.
-  // We'll keep the counts as they were – but they will be inaccurate with server‑side pagination.
-  // To fix, we'd need to fetch counts separately. For now, we'll just show the total count for the current filter.
-  const getTabCount = (tabKey) => {
-    // Since we only have the current page data, we can't accurately count all tabs.
-    // We'll use the totalCount from the API for the active tab, and for others we'll just show '?'
-    if (tabKey === activeTab) {
-      return totalCount;
-    }
-    // For other tabs, we could make separate count API calls, but that's expensive.
-    // We'll just show 0 or a placeholder.
-    return 0; // or use a state variable for each count
   };
 
   // ─── Render dropdowns ──────────────────────────────────
@@ -377,7 +386,6 @@ const Bookings = () => {
     const start = (currentPage - 1) * pageSize + 1;
     const end = Math.min(currentPage * pageSize, totalCount);
 
-    // Build page numbers
     const pageNumbers = [];
     const maxVisible = 5;
     let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
@@ -462,29 +470,24 @@ const Bookings = () => {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex bg-white rounded-[13px] overflow-hidden mb-[16px] shadow-[0_1px_4px_rgba(0,0,0,0.05)] w-fit flex-wrap">
-        {TABS.map((tabKey) => {
-          // Counts are only accurate for the active tab; for others we show 0 or we could fetch counts separately.
-          // For simplicity, we'll show the total count for the active tab, and for others we'll show a dash.
-          const count = tabKey === activeTab ? totalCount : '–';
-          return (
-            <button
-              key={tabKey}
-              onClick={() => {
-                setActiveTab(tabKey);
-                // The useEffect will trigger fetch with page 1
-              }}
-              className={`px-[22px] py-[10px] text-[13px] ${
-                activeTab === tabKey
-                  ? 'bg-gradient-to-r from-[#D61CA8] to-[#8B2EF5] font-bold text-white'
-                  : 'font-medium text-[#9090A0]'
-              }`}
-            >
-              {tabKey.charAt(0).toUpperCase() + tabKey.slice(1)} ({count})
-            </button>
-          );
-        })}
+      {/* Tabs - wrapped, no horizontal scroll */}
+      <div className="flex flex-wrap gap-1 bg-white rounded-[13px] p-1 mb-[16px] shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
+        {TABS.map((tabKey) => (
+          <button
+            key={tabKey}
+            onClick={() => {
+              setActiveTab(tabKey);
+              // fetchBookings will be triggered by useEffect
+            }}
+            className={`px-[22px] py-[10px] text-[13px] rounded-[8px] transition-colors ${
+              activeTab === tabKey
+                ? 'bg-gradient-to-r from-[#D61CA8] to-[#8B2EF5] font-bold text-white'
+                : 'font-medium text-[#9090A0] hover:bg-[#F4F5F8]'
+            }`}
+          >
+            {tabKey.charAt(0).toUpperCase() + tabKey.slice(1)} ({tabCounts[tabKey] ?? 0})
+          </button>
+        ))}
       </div>
 
       {/* Booking list */}
