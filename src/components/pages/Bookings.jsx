@@ -33,6 +33,14 @@ const parseCustomDate = (dateStr) => {
   return new Date(year, month, day, hour, minute);
 };
 
+// Helper to format date to dd-mm-yyyy
+const formatDate = (dateStr) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  return `${parts[2]}-${parts[1]}-${parts[0]}`;
+};
+
 const Bookings = () => {
   const [activeTab, setActiveTab] = useState('today');
   const [bookings, setBookings] = useState([]);
@@ -47,9 +55,13 @@ const Bookings = () => {
   const [showDateDropdown, setShowDateDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
+  // To prevent closing date dropdown while interacting with native date picker
+  const [isDatePickerFocused, setIsDatePickerFocused] = useState(false);
+
   const categoryRef = useRef(null);
   const dateRef = useRef(null);
   const statusRef = useRef(null);
+  const dateInputRef = useRef(null);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -100,6 +112,9 @@ const Bookings = () => {
 
   useEffect(() => {
     const handleClickOutside = (e) => {
+      // Skip closing date dropdown if date picker is focused
+      if (isDatePickerFocused) return;
+
       if (categoryRef.current && !categoryRef.current.contains(e.target)) {
         setShowCategoryDropdown(false);
       }
@@ -112,7 +127,7 @@ const Bookings = () => {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isDatePickerFocused]);
 
   const getStatusTone = (status) => {
     const map = {
@@ -258,40 +273,51 @@ const Bookings = () => {
     </div>
   );
 
-  const renderDateDropdown = () => (
-    <div className="relative" ref={dateRef}>
-      <button
-        onClick={() => setShowDateDropdown((prev) => !prev)}
-        className="px-[16px] py-[8px] bg-white border-[1.5px] border-[#EBEBEF] rounded-[9px] text-[12px] font-medium text-[#6B7280] flex items-center gap-1"
-      >
-        Date {dateFilter ? `: ${dateFilter}` : ''} ▾
-      </button>
-      {showDateDropdown && (
-        <div className="absolute top-full left-0 mt-1 bg-white border border-[#EBEBEF] rounded-[9px] shadow-lg z-20 p-3 min-w-[200px]">
-          <input
-            type="date"
-            value={dateFilter}
-            onChange={(e) => {
-              setDateFilter(e.target.value);
-              setShowDateDropdown(false);
-            }}
-            className="w-full px-3 py-2 border border-[#EBEBEF] rounded-[7px] text-[13px] focus:outline-none focus:ring-2 focus:ring-[#D61CA8]"
-          />
-          {dateFilter && (
-            <button
-              onClick={() => {
-                setDateFilter('');
-                setShowDateDropdown(false);
+  const renderDateDropdown = () => {
+    const displayDate = dateFilter ? formatDate(dateFilter) : '';
+
+    return (
+      <div className="relative" ref={dateRef}>
+        <button
+          onClick={() => setShowDateDropdown((prev) => !prev)}
+          className="px-[16px] py-[8px] bg-white border-[1.5px] border-[#EBEBEF] rounded-[9px] text-[12px] font-medium text-[#6B7280] flex items-center gap-1"
+        >
+          Date {displayDate ? `: ${displayDate}` : ''} ▾
+        </button>
+        {showDateDropdown && (
+          <div className="absolute top-full left-0 mt-1 bg-white border border-[#EBEBEF] rounded-[9px] shadow-lg z-20 p-3 min-w-[200px]">
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={dateFilter}
+              onFocus={() => setIsDatePickerFocused(true)}
+              onBlur={() => {
+                // Delay to allow clicks on the native picker popup
+                setTimeout(() => setIsDatePickerFocused(false), 200);
               }}
-              className="mt-2 text-[12px] text-[#D61CA8] font-medium hover:underline"
-            >
-              Clear date
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
+              onChange={(e) => {
+                setDateFilter(e.target.value);
+                setShowDateDropdown(false);
+                setIsDatePickerFocused(false);
+              }}
+              className="w-full px-3 py-2 border border-[#EBEBEF] rounded-[7px] text-[13px] focus:outline-none focus:ring-2 focus:ring-[#D61CA8]"
+            />
+            {dateFilter && (
+              <button
+                onClick={() => {
+                  setDateFilter('');
+                  setShowDateDropdown(false);
+                }}
+                className="mt-2 text-[12px] text-[#D61CA8] font-medium hover:underline"
+              >
+                Clear date
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderStatusDropdown = () => (
     <div className="relative" ref={statusRef}>
@@ -314,7 +340,7 @@ const Bookings = () => {
           >
             All
           </button>
-          {['Today', 'Upcoming', 'Ongoing', 'Completed', 'Cancellled'].map((s) => (
+          {['Pending', 'Completed', 'Cancelled', 'Upcoming', 'Ongoing'].map((s) => (
             <button
               key={s}
               onClick={() => {
@@ -400,30 +426,28 @@ const Bookings = () => {
     );
   };
 
-  const renderShimmer = () => {
-    return (
-      <div className="flex flex-col gap-[10px]">
-        {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="flex items-center gap-[14px] bg-white rounded-[14px] p-[15px] shadow-[0_1px_4px_rgba(0,0,0,0.04)] animate-pulse"
-          >
-            <div className="w-[46px] h-[46px] rounded-[11px] bg-gray-200"></div>
-            <div className="flex-1">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-            </div>
-            <div className="w-[60px] h-5 bg-gray-200 rounded"></div>
-            <div className="w-[70px] h-5 bg-gray-200 rounded"></div>
-            <div className="flex gap-[5px]">
-              <div className="w-[50px] h-7 bg-gray-200 rounded"></div>
-              <div className="w-[50px] h-7 bg-gray-200 rounded"></div>
-            </div>
+  const renderShimmer = () => (
+    <div className="flex flex-col gap-[10px]">
+      {[1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="flex items-center gap-[14px] bg-white rounded-[14px] p-[15px] shadow-[0_1px_4px_rgba(0,0,0,0.04)] animate-pulse"
+        >
+          <div className="w-[46px] h-[46px] rounded-[11px] bg-gray-200"></div>
+          <div className="flex-1">
+            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+            <div className="h-3 bg-gray-200 rounded w-1/2"></div>
           </div>
-        ))}
-      </div>
-    );
-  };
+          <div className="w-[60px] h-5 bg-gray-200 rounded"></div>
+          <div className="w-[70px] h-5 bg-gray-200 rounded"></div>
+          <div className="flex gap-[5px]">
+            <div className="w-[50px] h-7 bg-gray-200 rounded"></div>
+            <div className="w-[50px] h-7 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#F4F5F8] p-[24px]">
@@ -437,7 +461,6 @@ const Bookings = () => {
           </div>
         </div>
 
-        
         <div className="flex gap-[9px]">
           {renderStatusDropdown()}
           {renderCategoryDropdown()}
