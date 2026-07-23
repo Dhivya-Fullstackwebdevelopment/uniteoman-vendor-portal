@@ -1,39 +1,56 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getData } from '../../api/apiService';
-import API_BASE_URL from '../../api/apiConfig'; // adjust path as needed
+import API_BASE_URL from '../../api/apiConfig';
 
-// ============================================================
-// API endpoints – appended to API_BASE_URL
-// ============================================================
 const BOOKINGS_ENDPOINT = '/professionals/vendor/bookings/';
 const SERVICES_ENDPOINT = '/services/';
 
-// ============================================================
-// MAIN COMPONENT
-// ============================================================
+const parseCustomDate = (dateStr) => {
+  if (!dateStr) return null;
+  const parts = dateStr.split(' ');
+  if (parts.length < 5) return null;
+
+  const day = parseInt(parts[1], 10);
+  const monthAbbr = parts[2];
+  const time = parts[3] + ' ' + parts[4];
+
+  const months = {
+    Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+    Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11
+  };
+  const month = months[monthAbbr];
+  if (month === undefined) return null;
+
+  const year = new Date().getFullYear();
+  const [hourStr, minuteStr] = time.split(':');
+  let hour = parseInt(hourStr, 10);
+  const minute = parseInt(minuteStr.split(' ')[0], 10);
+  const ampm = time.includes('PM') ? 'PM' : 'AM';
+
+  if (ampm === 'PM' && hour < 12) hour += 12;
+  if (ampm === 'AM' && hour === 12) hour = 0;
+
+  return new Date(year, month, day, hour, minute);
+};
+
 const Bookings = () => {
-  // ---------- state ----------
   const [activeTab, setActiveTab] = useState('today');
   const [bookings, setBookings] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // filter values
-  const [statusFilter, setStatusFilter] = useState('today');
   const [categoryFilter, setCategoryFilter] = useState(null);
   const [dateFilter, setDateFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
-  // dropdown toggles
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
-  // refs for click-outside
-  const statusRef = useRef(null);
   const categoryRef = useRef(null);
   const dateRef = useRef(null);
+  const statusRef = useRef(null);
 
-  // ---------- fetch categories (main services) ----------
   const fetchCategories = useCallback(async () => {
     try {
       const url = `${API_BASE_URL}${SERVICES_ENDPOINT}`;
@@ -48,12 +65,10 @@ const Bookings = () => {
     }
   }, []);
 
-  // ---------- fetch bookings with current filters ----------
   const fetchBookings = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (statusFilter) params.append('status', statusFilter);
       if (categoryFilter) params.append('category_id', categoryFilter);
       if (dateFilter) params.append('date', dateFilter);
 
@@ -73,93 +88,135 @@ const Bookings = () => {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, categoryFilter, dateFilter]);
+  }, [categoryFilter, dateFilter]);
 
-  // ---------- load categories on mount ----------
   useEffect(() => {
     fetchCategories();
   }, [fetchCategories]);
 
-  // ---------- fetch bookings whenever filters change ----------
   useEffect(() => {
     fetchBookings();
   }, [fetchBookings]);
 
-  // ---------- click-outside: close dropdowns ----------
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (statusRef.current && !statusRef.current.contains(e.target)) {
-        setShowStatusDropdown(false);
-      }
       if (categoryRef.current && !categoryRef.current.contains(e.target)) {
         setShowCategoryDropdown(false);
       }
       if (dateRef.current && !dateRef.current.contains(e.target)) {
         setShowDateDropdown(false);
       }
+      if (statusRef.current && !statusRef.current.contains(e.target)) {
+        setShowStatusDropdown(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // ---------- helpers ----------
   const getStatusTone = (status) => {
     const map = {
-      active: 'bg-blue-100 text-blue-600',
+      pending: 'bg-yellow-100 text-yellow-700',
+      in_progress: 'bg-blue-100 text-blue-600',
+      arrived: 'bg-purple-100 text-purple-600',
+      en_route: 'bg-indigo-100 text-indigo-600',
       done: 'bg-emerald-100 text-emerald-600',
       completed: 'bg-emerald-100 text-emerald-600',
       upcoming: 'bg-amber-100 text-amber-600',
       scheduled: 'bg-purple-100 text-purple-600',
       cancelled: 'bg-red-100 text-red-600',
       today: 'bg-blue-100 text-blue-600',
+      ongoing: 'bg-indigo-100 text-indigo-600',
     };
     return map[status?.toLowerCase()] || 'bg-gray-100 text-gray-600';
   };
 
-  const getTabCount = (tabKey) => {
-    return bookings.filter((b) => b.status?.toLowerCase() === tabKey).length;
+  const getFilteredBookings = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+
+    return bookings.filter((b) => {
+      const dateObj = parseCustomDate(b.date_time);
+      const status = b.status?.toLowerCase() || '';
+
+      if (statusFilter) {
+        const filter = statusFilter.toLowerCase();
+        if (filter === 'upcoming') {
+          if (!dateObj) return false;
+          return dateObj > now;
+        } else if (filter === 'ongoing') {
+          const ongoingStatuses = ['in_progress', 'arrived', 'en_route', 'ongoing'];
+          if (!ongoingStatuses.includes(status)) return false;
+        } else {
+          if (status !== filter) return false;
+        }
+      }
+
+      switch (activeTab) {
+        case 'today':
+          if (!dateObj) return false;
+          const bookingDate = new Date(dateObj);
+          bookingDate.setHours(0, 0, 0, 0);
+          return bookingDate.getTime() === today.getTime();
+
+        case 'upcoming':
+          if (!dateObj) return false;
+          return dateObj > now;
+
+        case 'ongoing':
+          const ongoingStatuses = ['in_progress', 'arrived', 'en_route', 'ongoing'];
+          return ongoingStatuses.includes(status);
+
+        case 'completed':
+          return ['completed', 'done'].includes(status);
+
+        case 'cancelled':
+          return status === 'cancelled';
+
+        default:
+          return true;
+      }
+    });
   };
 
-  // filter bookings for the active tab (client-side filtering)
-  const filteredBookings = bookings.filter((b) => {
-    const status = b.status?.toLowerCase() || '';
-    if (activeTab === 'today') return status === 'today';
-    if (activeTab === 'upcoming') return status === 'upcoming';
-    if (activeTab === 'completed') return status === 'completed';
-    if (activeTab === 'cancelled') return status === 'cancelled';
-    return true;
-  });
+  const filteredBookings = getFilteredBookings();
 
-  // ---------- render dropdowns ----------
-  const renderStatusDropdown = () => (
-    <div className="relative" ref={statusRef}>
-      <button
-        onClick={() => setShowStatusDropdown((prev) => !prev)}
-        className="px-[16px] py-[8px] bg-white border-[1.5px] border-[#EBEBEF] rounded-[9px] text-[12px] font-medium text-[#6B7280] flex items-center gap-1"
-      >
-        Status {statusFilter && `: ${statusFilter}`} ▾
-      </button>
-      {showStatusDropdown && (
-        <div className="absolute top-full left-0 mt-1 bg-white border border-[#EBEBEF] rounded-[9px] shadow-lg z-20 min-w-[140px] py-1">
-          {['today', 'upcoming', 'completed', 'cancelled'].map((s) => (
-            <button
-              key={s}
-              onClick={() => {
-                setStatusFilter(s);
-                setActiveTab(s);
-                setShowStatusDropdown(false);
-              }}
-              className={`block w-full text-left px-4 py-2 text-[13px] hover:bg-[#F4F5F8] ${
-                statusFilter === s ? 'text-[#D61CA8] font-bold' : 'text-[#0A0A0F]'
-              }`}
-            >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  const getTabCount = (tabKey) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+
+    return bookings.filter((b) => {
+      const dateObj = parseCustomDate(b.date_time);
+      const status = b.status?.toLowerCase() || '';
+
+      switch (tabKey) {
+        case 'today':
+          if (!dateObj) return false;
+          const bookingDate = new Date(dateObj);
+          bookingDate.setHours(0, 0, 0, 0);
+          return bookingDate.getTime() === today.getTime();
+
+        case 'upcoming':
+          if (!dateObj) return false;
+          return dateObj > now;
+
+        case 'ongoing':
+          const ongoingStatuses = ['in_progress', 'arrived', 'en_route', 'ongoing'];
+          return ongoingStatuses.includes(status);
+
+        case 'completed':
+          return ['completed', 'done'].includes(status);
+
+        case 'cancelled':
+          return status === 'cancelled';
+
+        default:
+          return true;
+      }
+    }).length;
+  };
 
   const renderCategoryDropdown = () => (
     <div className="relative" ref={categoryRef}>
@@ -236,23 +293,59 @@ const Bookings = () => {
     </div>
   );
 
-  // ---------- render booking item ----------
+  const renderStatusDropdown = () => (
+    <div className="relative" ref={statusRef}>
+      <button
+        onClick={() => setShowStatusDropdown((prev) => !prev)}
+        className="px-[16px] py-[8px] bg-white border-[1.5px] border-[#EBEBEF] rounded-[9px] text-[12px] font-medium text-[#6B7280] flex items-center gap-1"
+      >
+        Status {statusFilter ? `: ${statusFilter}` : ''} ▾
+      </button>
+      {showStatusDropdown && (
+        <div className="absolute top-full left-0 mt-1 bg-white border border-[#EBEBEF] rounded-[9px] shadow-lg z-20 min-w-[150px] py-1">
+          <button
+            onClick={() => {
+              setStatusFilter('');
+              setShowStatusDropdown(false);
+            }}
+            className={`block w-full text-left px-4 py-2 text-[13px] hover:bg-[#F4F5F8] ${
+              statusFilter === '' ? 'text-[#D61CA8] font-bold' : 'text-[#0A0A0F]'
+            }`}
+          >
+            All
+          </button>
+          {['Today', 'Upcoming', 'Ongoing', 'Completed', 'Cancellled'].map((s) => (
+            <button
+              key={s}
+              onClick={() => {
+                setStatusFilter(s);
+                setShowStatusDropdown(false);
+              }}
+              className={`block w-full text-left px-4 py-2 text-[13px] hover:bg-[#F4F5F8] ${
+                statusFilter === s ? 'text-[#D61CA8] font-bold' : 'text-[#0A0A0F]'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   const renderBookingItem = (booking) => {
     const name = booking.service_name || booking.name || 'Service';
-    
-    // Extracted values matching API fields
     const customer = booking.customer_name || booking.client_name || 'Customer';
     const dateTime = booking.date_time || booking.time || '';
     const location = booking.location || '';
-    
-    // Constructed metadata incorporating date_time
+
     const metaParts = [customer, dateTime, location].filter(Boolean);
     const meta = metaParts.length > 0 ? metaParts.join(' · ') : 'No details available';
 
     const price = booking.price || booking.amount || booking.total || 'OMR 0';
     const displayStatus = booking.status_display || booking.status || 'Scheduled';
     const statusTone = getStatusTone(booking.status || displayStatus);
-    
+
     const icon = booking.icon || '🔧';
     const iconBg = booking.icon_bg || '#F4F5F8';
     const borderColor = booking.border_color || '#8B2EF5';
@@ -307,21 +400,44 @@ const Bookings = () => {
     );
   };
 
-  // ---------- render ----------
+  const renderShimmer = () => {
+    return (
+      <div className="flex flex-col gap-[10px]">
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="flex items-center gap-[14px] bg-white rounded-[14px] p-[15px] shadow-[0_1px_4px_rgba(0,0,0,0.04)] animate-pulse"
+          >
+            <div className="w-[46px] h-[46px] rounded-[11px] bg-gray-200"></div>
+            <div className="flex-1">
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+            </div>
+            <div className="w-[60px] h-5 bg-gray-200 rounded"></div>
+            <div className="w-[70px] h-5 bg-gray-200 rounded"></div>
+            <div className="flex gap-[5px]">
+              <div className="w-[50px] h-7 bg-gray-200 rounded"></div>
+              <div className="w-[50px] h-7 bg-gray-200 rounded"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="flex-1 overflow-y-auto bg-[#F4F5F8] p-[24px]">
-      {/* header */}
       <div className="flex items-center justify-between mb-[18px]">
         <div>
           <div className="font-extrabold text-[22px] leading-none text-[#0A0A0F]">
             My Bookings
           </div>
           <div className="text-[14px] leading-none text-[#9090A0] mt-[4px]">
-            All jobs — today, upcoming, completed, cancelled
+            All jobs — today, upcoming, ongoing, completed, cancelled
           </div>
         </div>
 
-        {/* filter buttons */}
+        
         <div className="flex gap-[9px]">
           {renderStatusDropdown()}
           {renderCategoryDropdown()}
@@ -329,15 +445,11 @@ const Bookings = () => {
         </div>
       </div>
 
-      {/* tabs */}
       <div className="flex bg-white rounded-[13px] overflow-hidden mb-[16px] shadow-[0_1px_4px_rgba(0,0,0,0.05)] w-fit">
-        {['today', 'upcoming', 'completed', 'cancelled'].map((tabKey) => (
+        {['today', 'upcoming', 'ongoing', 'completed', 'cancelled'].map((tabKey) => (
           <button
             key={tabKey}
-            onClick={() => {
-              setActiveTab(tabKey);
-              setStatusFilter(tabKey);
-            }}
+            onClick={() => setActiveTab(tabKey)}
             className={`px-[22px] py-[10px] text-[13px] ${
               activeTab === tabKey
                 ? 'bg-gradient-to-r from-[#D61CA8] to-[#8B2EF5] font-bold text-white'
@@ -349,11 +461,8 @@ const Bookings = () => {
         ))}
       </div>
 
-      {/* booking list */}
       {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="text-[#9090A0]">Loading bookings…</div>
-        </div>
+        renderShimmer()
       ) : filteredBookings.length === 0 ? (
         <div className="flex justify-center items-center py-12 bg-white rounded-[14px]">
           <div className="text-[#9090A0]">No bookings found for this filter.</div>
