@@ -224,7 +224,12 @@ const Bookings = () => {
         onClick={() => setShowCategoryDropdown((prev) => !prev)}
         className="px-[16px] py-[8px] bg-white border-[1.5px] border-[#EBEBEF] rounded-[9px] text-[12px] font-medium text-[#6B7280] flex items-center gap-1"
       >
-        Category {categoryFilter ? `: ${categories.find((c) => c.id === categoryFilter)?.name || ''}` : ''} ▾
+        Category {
+          categoryFilter
+            ? `: ${categories.find((c) => c.service_id === categoryFilter)?.service_name || ''
+            }`
+            : ''
+        } ▾
       </button>
       {showCategoryDropdown && (
         <div className="absolute top-full left-0 mt-1 bg-white border border-[#EBEBEF] rounded-[9px] shadow-lg z-20 min-w-[180px] max-h-[260px] overflow-y-auto py-1">
@@ -245,9 +250,8 @@ const Bookings = () => {
                 setCategoryFilter(cat.service_id);
                 setShowCategoryDropdown(false);
               }}
-               className={`block w-full text-left px-4 py-2 text-[13px] hover:bg-[#F4F5F8] ${
-                categoryFilter === cat.id ? 'text-[#D61CA8] font-bold' : 'text-[#0A0A0F]'
-              }`}
+              className={`block w-full text-left px-4 py-2 text-[13px] hover:bg-[#F4F5F8] ${categoryFilter === cat.service_id ? 'text-[#D61CA8] font-bold' : 'text-[#0A0A0F]'
+                }`}
             >
               {cat.service_name}
             </button>
