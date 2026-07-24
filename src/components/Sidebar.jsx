@@ -177,7 +177,8 @@ import logo from '../assets/uniteoman-logo.png';
 
 const NAV_ITEMS = [
   { key: 'dashboard', icon: 'grid', label: 'Dashboard' },
-  { key: 'bookings', icon: 'calendar', label: 'Bookings', badge: '147' },
+  // { key: 'bookings', icon: 'calendar', label: 'Bookings', badge: '147' },
+  { key: 'bookings', icon: 'calendar', label: 'Bookings' },
   { key: 'services', icon: 'layers', label: 'My Services' },
   { key: 'payments', icon: 'credit-card', label: 'Payments' },
   { key: 'credits', icon: 'credit-card', label: 'Credits' },
