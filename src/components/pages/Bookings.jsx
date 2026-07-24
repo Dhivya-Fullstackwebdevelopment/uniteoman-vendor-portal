@@ -5,7 +5,6 @@ import API_BASE_URL, { API_ENDPOINTS } from '../../api/apiConfig';
 const BOOKINGS_ENDPOINT = '/professionals/vendor/bookings/';
 const UPDATE_STATUS_ENDPOINT = (id) => `/professionals/vendor/bookings/${id}/status/`;
 
-
 const TABS = ['all', 'today', 'upcoming', 'ongoing', 'completed', 'cancelled'];
 
 const parseCustomDate = (dateStr) => {
@@ -38,6 +37,12 @@ const formatDate = (dateStr) => {
   return `${parts[2]}-${parts[1]}-${parts[0]}`;
 };
 
+// Helper for status label formatting
+const formatStatusLabel = (status) => {
+  if (!status) return 'Unknown';
+  return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+};
+
 const Bookings = () => {
   // ─── State ──────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState('all');
@@ -67,6 +72,41 @@ const Bookings = () => {
   const dateRef = useRef(null);
   const dateInputRef = useRef(null);
 
+  // ─── Booking detail modal state ────────────────────────
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState(null);
+  const [bookingDetail, setBookingDetail] = useState(null);
+
+  const BOOKING_DETAIL_ENDPOINT = (id) => `/professionals/bookings/${id}/`;
+
+  const openBookingDetail = async (bookingId) => {
+    setShowDetailModal(true);
+    setDetailLoading(true);
+    setDetailError(null);
+    setBookingDetail(null);
+    try {
+      const url = `${API_BASE_URL}${BOOKING_DETAIL_ENDPOINT(bookingId)}`;
+      const response = await getData(url);
+      if (response && response.data) {
+        setBookingDetail(response.data);
+      } else {
+        setDetailError('Booking details not found.');
+      }
+    } catch (err) {
+      console.error('Failed to fetch booking detail:', err);
+      setDetailError('Failed to load booking details. Please try again.');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const closeBookingDetail = () => {
+    setShowDetailModal(false);
+    setBookingDetail(null);
+    setDetailError(null);
+  };
+
   // ─── Update booking status ──────────────────────────────
   const updateBookingStatus = async (bookingId, newStatus) => {
     try {
@@ -85,23 +125,9 @@ const Bookings = () => {
   const fetchCategories = useCallback(async () => {
     try {
       const professionalId = localStorage.getItem("vendor_professional_id");
-
-      console.log("Professional ID:", professionalId);
-
       if (!professionalId) return;
-
-      // const url = API_BASE_URL.PROFESSIONAL_SERVICES(professionalId);
-      // const url = `${API_BASE_URL}${PROFESSIONAL_SERVICES(professionalId)}`;
       const url = API_ENDPOINTS.PROFESSIONAL_SERVICES(professionalId);
-
-
-
-      console.log("Calling:", url);
-
       const response = await getData(url);
-
-      console.log("Response:", response);
-
       setCategories(response.data);
     } catch (err) {
       console.error(err);
@@ -177,11 +203,10 @@ const Bookings = () => {
     fetchCategories();
   }, [fetchCategories]);
 
-  // When filters/tab change, fetch counts and bookings
   useEffect(() => {
     fetchTabCounts();
     fetchBookings(1);
-  }, [fetchTabCounts, fetchBookings]); // fetchBookings depends on activeTab, category, date
+  }, [fetchTabCounts, fetchBookings]);
 
   // ─── Click‑outside to close dropdowns ──────────────────
   useEffect(() => {
@@ -303,6 +328,195 @@ const Bookings = () => {
     );
   };
 
+  // ─── Booking Detail Modal (final design matching image) ───
+  const renderBookingDetailModal = () => {
+    if (!showDetailModal) return null;
+
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px] p-4"
+        onClick={closeBookingDetail}
+      >
+        <div
+          className="bg-white rounded-[20px] w-full max-w-[520px] max-h-[88vh] overflow-y-auto shadow-2xl modal-scroll"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#D1D5DB transparent',
+          }}
+        >
+          {/* Custom scrollbar styling via global styles (injected below) */}
+          <style>{`
+            .modal-scroll::-webkit-scrollbar {
+              width: 4px;
+            }
+            .modal-scroll::-webkit-scrollbar-track {
+              background: transparent;
+              border-radius: 10px;
+            }
+            .modal-scroll::-webkit-scrollbar-thumb {
+              background: #D1D5DB;
+              border-radius: 10px;
+            }
+            .modal-scroll::-webkit-scrollbar-thumb:hover {
+              background: #B0B5C0;
+            }
+          `}</style>
+
+          {detailLoading && (
+            <div className="py-24 text-center text-[13px] font-medium text-[#9090A0]">Loading details…</div>
+          )}
+
+          {!detailLoading && detailError && (
+            <div className="py-24 text-center text-[13px] font-medium text-red-500 px-[24px]">
+              Couldn't load booking: {detailError}
+            </div>
+          )}
+
+          {!detailLoading && !detailError && bookingDetail && (
+            <>
+              {/* Gradient header with close button */}
+              <div className="relative bg-gradient-to-br from-[#D61CA8] to-[#8B2EF5] rounded-t-[20px] px-[24px] pt-[22px] pb-[26px] overflow-hidden">
+                <div className="absolute -top-8 -right-8 w-[140px] h-[140px] rounded-full bg-white/10" />
+                <div className="absolute -bottom-10 -left-6 w-[100px] h-[100px] rounded-full bg-white/10" />
+
+                <button
+                  onClick={closeBookingDetail}
+                  className="absolute top-[16px] right-[16px] w-[28px] h-[28px] flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white text-[13px] font-bold transition-colors"
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+
+                <div className="relative flex items-center justify-between pr-[36px]">
+                  <div>
+                    <div className="text-white/70 text-[11px] font-semibold uppercase tracking-[0.8px] mb-[4px]">
+                      Booking
+                    </div>
+                    <div className="font-mono text-white text-[18px] font-extrabold">
+                      {bookingDetail.booking_code}
+                    </div>
+                  </div>
+                  <span className="px-[12px] py-[6px] rounded-full text-[11px] font-bold bg-white/90 text-[#0A0A0F]">
+                    {formatStatusLabel(bookingDetail.status)}
+                  </span>
+                </div>
+
+                <div className="relative mt-[16px] flex items-baseline justify-between">
+                  <div>
+                    <div className="text-white text-[17px] font-bold leading-tight">
+                      {bookingDetail.service?.type_name}
+                    </div>
+                    <div className="text-white/75 text-[12px] mt-[3px]">
+                      {bookingDetail.service?.duration} · {bookingDetail.date} · {bookingDetail.time}
+                    </div>
+                  </div>
+                  <div className="text-white text-[22px] font-extrabold whitespace-nowrap">
+                    OMR {bookingDetail.pricing?.total_amount}
+                  </div>
+                </div>
+              </div>
+
+              {/* Body – Customer, Professional, Address, Payment, Pricing */}
+              <div className="p-[22px] flex flex-col gap-[14px] -mt-[14px]">
+                {/* Customer & Professional cards */}
+                <div className="grid grid-cols-2 gap-[10px]">
+                  <div className="bg-[#F8F8FA] rounded-[14px] p-[14px]">
+                    <div className="flex items-center gap-[6px] mb-[8px]">
+                      <span className="text-[14px]">👤</span>
+                      <span className="text-[10px] font-bold text-[#9090A0] uppercase tracking-[0.5px]">Customer</span>
+                    </div>
+                    <div className="text-[13px] font-bold text-[#0A0A0F] truncate">{bookingDetail.user?.name}</div>
+                    <div className="text-[11px] text-[#6B7280] mt-[3px] truncate">{bookingDetail.user?.email}</div>
+                    <div className="text-[11px] text-[#6B7280] mt-[1px]">{bookingDetail.user?.mobile}</div>
+                  </div>
+
+                  <div className="bg-[#F8F8FA] rounded-[14px] p-[14px]">
+                    <div className="flex items-center gap-[6px] mb-[8px]">
+                      <span className="text-[14px]">🛠️</span>
+                      <span className="text-[10px] font-bold text-[#9090A0] uppercase tracking-[0.5px]">Professional</span>
+                    </div>
+                    {bookingDetail.professional ? (
+                      <>
+                        <div className="text-[13px] font-bold text-[#0A0A0F] truncate">
+                          {bookingDetail.professional.name}
+                        </div>
+                        <div className="text-[11px] text-[#D61CA8] font-semibold mt-[3px]">
+                          ★ {bookingDetail.professional.rating} · {bookingDetail.professional.jobs_done} jobs
+                        </div>
+                        <div className="text-[11px] text-[#6B7280] mt-[1px] truncate">
+                          {bookingDetail.professional.specialty}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-[12px] font-bold text-[#EF4444] mt-[2px]">Unassigned</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Address */}
+                <div className="border border-[#EBEBEF] rounded-[14px] p-[14px]">
+                  <div className="flex items-center gap-[6px] mb-[8px]">
+                    <span className="text-[14px]">📍</span>
+                    <span className="text-[10px] font-bold text-[#9090A0] uppercase tracking-[0.5px]">
+                      Service Address
+                    </span>
+                  </div>
+                  <div className="text-[13px] font-semibold text-[#0A0A0F]">
+                    {bookingDetail.address?.villa_apartment_no}, {bookingDetail.address?.street_name}
+                  </div>
+                  <div className="text-[12px] text-[#6B7280] mt-[3px]">
+                    {bookingDetail.address?.building_floor} · {bookingDetail.address?.area}
+                  </div>
+                  <div className="text-[12px] text-[#9090A0] mt-[3px] italic">
+                    Landmark: {bookingDetail.address?.nearest_landmark}
+                  </div>
+                </div>
+
+                {/* Payment */}
+                <div className="flex items-center justify-between border border-[#EBEBEF] rounded-[14px] px-[14px] py-[12px]">
+                  <div className="flex items-center gap-[8px]">
+                    <span className="text-[14px]">💳</span>
+                    <span className="text-[12px] font-semibold text-[#0A0A0F]">
+                      {bookingDetail.payment?.method}
+                      {bookingDetail.payment?.card_last4 ? ` •••• ${bookingDetail.payment.card_last4}` : ''}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-[8px] py-[3px] rounded">
+                    Paid
+                  </span>
+                </div>
+
+                {/* Pricing breakdown */}
+                <div className="bg-gradient-to-br from-[#FDF2F8] to-[#F5F0FE] rounded-[14px] p-[16px]">
+                  <div className="text-[10px] font-bold text-[#9090A0] uppercase tracking-[0.5px] mb-[10px]">
+                    Pricing Breakdown
+                  </div>
+                  <div className="flex justify-between text-[12px] text-[#6B7280] mb-[6px]">
+                    <span>Service fee</span>
+                    <span className="font-medium text-[#0A0A0F]">OMR {bookingDetail.pricing?.service_fee}</span>
+                  </div>
+                  <div className="flex justify-between text-[12px] text-[#6B7280] mb-[6px]">
+                    <span>Platform fee</span>
+                    <span className="font-medium text-[#0A0A0F]">OMR {bookingDetail.pricing?.platform_fee}</span>
+                  </div>
+                  <div className="flex justify-between text-[12px] text-[#6B7280] mb-[10px]">
+                    <span>VAT</span>
+                    <span className="font-medium text-[#0A0A0F]">OMR {bookingDetail.pricing?.vat_amount}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[15px] font-extrabold text-[#0A0A0F] pt-[10px] border-t border-[#E7DCF2]">
+                    <span>Total</span>
+                    <span className="text-[#D61CA8]">OMR {bookingDetail.pricing?.total_amount}</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // ─── Booking card ──────────────────────────────────────
   const renderBookingItem = (booking) => {
     const name = booking.service_name || booking.name || 'Service';
@@ -340,7 +554,10 @@ const Bookings = () => {
           {displayStatus}
         </div>
         <div className="flex gap-[5px]">
-          <button className="px-[11px] py-[6px] bg-[#F8F8FA] border border-[#EBEBEF] rounded-[7px] text-[11px] font-semibold text-[#555]">
+          <button
+            onClick={() => openBookingDetail(booking.id)}
+            className="px-[11px] py-[6px] bg-[#F8F8FA] border border-[#EBEBEF] rounded-[7px] text-[11px] font-semibold text-[#555]"
+          >
             View
           </button>
           {secondAction === 'Receipt' && (
@@ -482,15 +699,12 @@ const Bookings = () => {
         </div>
       </div>
 
-      {/* Tabs - wrapped, no horizontal scroll */}
+      {/* Tabs */}
       <div className="flex flex-wrap gap-1 bg-white rounded-[13px] p-1 mb-[16px] shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
         {TABS.map((tabKey) => (
           <button
             key={tabKey}
-            onClick={() => {
-              setActiveTab(tabKey);
-              // fetchBookings will be triggered by useEffect
-            }}
+            onClick={() => setActiveTab(tabKey)}
             className={`px-[22px] py-[10px] text-[13px] rounded-[8px] transition-colors ${activeTab === tabKey
               ? 'bg-gradient-to-r from-[#D61CA8] to-[#8B2EF5] font-bold text-white'
               : 'font-medium text-[#9090A0] hover:bg-[#F4F5F8]'
@@ -516,6 +730,7 @@ const Bookings = () => {
           {renderPagination()}
         </div>
       )}
+      {renderBookingDetailModal()}
     </div>
   );
 };
