@@ -37,33 +37,27 @@ const formatDate = (dateStr) => {
   return `${parts[2]}-${parts[1]}-${parts[0]}`;
 };
 
-// Helper for status label formatting
 const formatStatusLabel = (status) => {
   if (!status) return 'Unknown';
   return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
 };
 
 const Bookings = () => {
-  // ─── State ──────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState('all');
   const [bookings, setBookings] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Filters
   const [categoryFilter, setCategoryFilter] = useState(null);
   const [dateFilter, setDateFilter] = useState('');
 
-  // Pagination (server‑side)
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const pageSize = 10;
 
-  // Tab counts (for all tabs)
   const [tabCounts, setTabCounts] = useState({});
 
-  // Dropdown toggles
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showDateDropdown, setShowDateDropdown] = useState(false);
   const [isDatePickerFocused, setIsDatePickerFocused] = useState(false);
@@ -72,7 +66,6 @@ const Bookings = () => {
   const dateRef = useRef(null);
   const dateInputRef = useRef(null);
 
-  // ─── Booking detail modal state ────────────────────────
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
@@ -107,21 +100,17 @@ const Bookings = () => {
     setDetailError(null);
   };
 
-  // ─── Update booking status ──────────────────────────────
   const updateBookingStatus = async (bookingId, newStatus) => {
     try {
       const url = `${API_BASE_URL}${UPDATE_STATUS_ENDPOINT(bookingId)}`;
       await putData(url, { status: newStatus });
-      // Refresh the current page after status change
       await fetchBookings(currentPage);
-      // Also refresh tab counts
       await fetchTabCounts();
     } catch (err) {
       console.error('Failed to update status:', err);
     }
   };
 
-  // ─── Fetch categories ──────────────────────────────────
   const fetchCategories = useCallback(async () => {
     try {
       const professionalId = localStorage.getItem("vendor_professional_id");
@@ -134,7 +123,6 @@ const Bookings = () => {
     }
   }, []);
 
-  // ─── Fetch tab counts ──────────────────────────────────
   const fetchTabCounts = useCallback(async () => {
     try {
       const results = await Promise.all(
@@ -155,7 +143,6 @@ const Bookings = () => {
     }
   }, [categoryFilter, dateFilter]);
 
-  // ─── Fetch bookings (server‑side pagination) ──────────
   const fetchBookings = useCallback(async (page = 1) => {
     setLoading(true);
     try {
@@ -198,7 +185,6 @@ const Bookings = () => {
     }
   }, [activeTab, categoryFilter, dateFilter]);
 
-  // ─── Effects ──────────────────────────────────────────
   useEffect(() => {
     fetchCategories();
   }, [fetchCategories]);
@@ -208,7 +194,6 @@ const Bookings = () => {
     fetchBookings(1);
   }, [fetchTabCounts, fetchBookings]);
 
-  // ─── Click‑outside to close dropdowns ──────────────────
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (isDatePickerFocused) return;
@@ -223,7 +208,6 @@ const Bookings = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isDatePickerFocused]);
 
-  // ─── Status badge colour ──────────────────────────────
   const getStatusTone = (status) => {
     const map = {
       pending: 'bg-yellow-100 text-yellow-700',
@@ -242,7 +226,6 @@ const Bookings = () => {
     return map[status?.toLowerCase()] || 'bg-gray-100 text-gray-600';
   };
 
-  // ─── Render dropdowns ──────────────────────────────────
   const renderCategoryDropdown = () => (
     <div className="relative" ref={categoryRef}>
       <button
@@ -328,7 +311,7 @@ const Bookings = () => {
     );
   };
 
-  // ─── Booking Detail Modal (final design matching image) ───
+  // ─── Booking Detail Modal (with fixed close button) ───
   const renderBookingDetailModal = () => {
     if (!showDetailModal) return null;
 
@@ -345,7 +328,6 @@ const Bookings = () => {
             scrollbarColor: '#D1D5DB transparent',
           }}
         >
-          {/* Custom scrollbar styling via global styles (injected below) */}
           <style>{`
             .modal-scroll::-webkit-scrollbar {
               width: 4px;
@@ -375,14 +357,17 @@ const Bookings = () => {
 
           {!detailLoading && !detailError && bookingDetail && (
             <>
-              {/* Gradient header with close button */}
               <div className="relative bg-gradient-to-br from-[#D61CA8] to-[#8B2EF5] rounded-t-[20px] px-[24px] pt-[22px] pb-[26px] overflow-hidden">
                 <div className="absolute -top-8 -right-8 w-[140px] h-[140px] rounded-full bg-white/10" />
                 <div className="absolute -bottom-10 -left-6 w-[100px] h-[100px] rounded-full bg-white/10" />
 
+                {/* FIXED CLOSE BUTTON – added z-10 and stopPropagation */}
                 <button
-                  onClick={closeBookingDetail}
-                  className="absolute top-[16px] right-[16px] w-[28px] h-[28px] flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white text-[13px] font-bold transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeBookingDetail();
+                  }}
+                  className="absolute top-[16px] right-[16px] z-10 w-[28px] h-[28px] flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white text-[13px] font-bold transition-colors"
                   aria-label="Close"
                 >
                   ✕
@@ -417,9 +402,7 @@ const Bookings = () => {
                 </div>
               </div>
 
-              {/* Body – Customer, Professional, Address, Payment, Pricing */}
               <div className="p-[22px] flex flex-col gap-[14px] -mt-[14px]">
-                {/* Customer & Professional cards */}
                 <div className="grid grid-cols-2 gap-[10px]">
                   <div className="bg-[#F8F8FA] rounded-[14px] p-[14px]">
                     <div className="flex items-center gap-[6px] mb-[8px]">
@@ -454,7 +437,6 @@ const Bookings = () => {
                   </div>
                 </div>
 
-                {/* Address */}
                 <div className="border border-[#EBEBEF] rounded-[14px] p-[14px]">
                   <div className="flex items-center gap-[6px] mb-[8px]">
                     <span className="text-[14px]">📍</span>
@@ -473,7 +455,6 @@ const Bookings = () => {
                   </div>
                 </div>
 
-                {/* Payment */}
                 <div className="flex items-center justify-between border border-[#EBEBEF] rounded-[14px] px-[14px] py-[12px]">
                   <div className="flex items-center gap-[8px]">
                     <span className="text-[14px]">💳</span>
@@ -487,7 +468,6 @@ const Bookings = () => {
                   </span>
                 </div>
 
-                {/* Pricing breakdown */}
                 <div className="bg-gradient-to-br from-[#FDF2F8] to-[#F5F0FE] rounded-[14px] p-[16px]">
                   <div className="text-[10px] font-bold text-[#9090A0] uppercase tracking-[0.5px] mb-[10px]">
                     Pricing Breakdown
@@ -517,7 +497,6 @@ const Bookings = () => {
     );
   };
 
-  // ─── Booking card ──────────────────────────────────────
   const renderBookingItem = (booking) => {
     const name = booking.service_name || booking.name || 'Service';
     const customer = booking.customer_name || booking.client_name || 'Customer';
@@ -588,7 +567,6 @@ const Bookings = () => {
     );
   };
 
-  // ─── Render Shimmer ────────────────────────────────────
   const renderShimmer = () => (
     <div className="flex flex-col gap-[10px]">
       {[1, 2, 3].map((i) => (
@@ -612,7 +590,6 @@ const Bookings = () => {
     </div>
   );
 
-  // ─── Pagination Controls ──────────────────────────────
   const renderPagination = () => {
     if (totalCount === 0) return null;
     const start = (currentPage - 1) * pageSize + 1;
@@ -679,10 +656,8 @@ const Bookings = () => {
     );
   };
 
-  // ─── Main Render ──────────────────────────────────────
   return (
     <div className="flex-1 overflow-y-auto overflow-x-hidden bg-[#F4F5F8] pt-6 pb-6 pl-6 pr-8">
-      {/* Header with filters */}
       <div className="flex items-center justify-between mb-[18px] flex-wrap gap-2">
         <div>
           <div className="font-extrabold text-[22px] leading-none text-[#0A0A0F]">
@@ -699,7 +674,6 @@ const Bookings = () => {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex flex-wrap gap-1 bg-white rounded-[13px] p-1 mb-[16px] shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
         {TABS.map((tabKey) => (
           <button
@@ -715,7 +689,6 @@ const Bookings = () => {
         ))}
       </div>
 
-      {/* Booking list */}
       {loading ? (
         renderShimmer()
       ) : bookings.length === 0 ? (
