@@ -24,6 +24,7 @@ export const vendorLogin = async (email, password) => {
   });
   localStorage.setItem("access_token_vendor", response.data.access);
   localStorage.setItem("refresh_token_vendor", response.data.refresh);
+  localStorage.setItem("vendor_professional_id", response.data.professional_id);
   localStorage.setItem("user", JSON.stringify(response.data.user));
   localStorage.setItem("professional", JSON.stringify(response.data.professional));
   return response.data;

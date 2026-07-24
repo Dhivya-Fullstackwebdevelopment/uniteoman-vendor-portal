@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getData, putData } from '../../api/apiService';
-import API_BASE_URL from '../../api/apiConfig';
+import API_BASE_URL, { API_ENDPOINTS } from '../../api/apiConfig';
 
 const BOOKINGS_ENDPOINT = '/professionals/vendor/bookings/';
-const SERVICES_ENDPOINT = '/services/';
 const UPDATE_STATUS_ENDPOINT = (id) => `/professionals/vendor/bookings/${id}/status/`;
+
 
 const TABS = ['all', 'today', 'upcoming', 'ongoing', 'completed', 'cancelled'];
 
@@ -84,15 +84,27 @@ const Bookings = () => {
   // ─── Fetch categories ──────────────────────────────────
   const fetchCategories = useCallback(async () => {
     try {
-      const url = `${API_BASE_URL}${SERVICES_ENDPOINT}`;
+      const professionalId = localStorage.getItem("vendor_professional_id");
+
+      console.log("Professional ID:", professionalId);
+
+      if (!professionalId) return;
+
+      // const url = API_BASE_URL.PROFESSIONAL_SERVICES(professionalId);
+      // const url = `${API_BASE_URL}${PROFESSIONAL_SERVICES(professionalId)}`;
+      const url = API_ENDPOINTS.PROFESSIONAL_SERVICES(professionalId);
+
+
+
+      console.log("Calling:", url);
+
       const response = await getData(url);
-      if (response && Array.isArray(response.data)) {
-        setCategories(response.data);
-      } else if (Array.isArray(response)) {
-        setCategories(response);
-      }
+
+      console.log("Response:", response);
+
+      setCategories(response.data);
     } catch (err) {
-      console.error('Failed to fetch categories:', err);
+      console.error(err);
     }
   }, []);
 
@@ -221,24 +233,23 @@ const Bookings = () => {
               setCategoryFilter(null);
               setShowCategoryDropdown(false);
             }}
-            className={`block w-full text-left px-4 py-2 text-[13px] hover:bg-[#F4F5F8] ${
-              categoryFilter === null ? 'text-[#D61CA8] font-bold' : 'text-[#0A0A0F]'
-            }`}
+            className={`block w-full text-left px-4 py-2 text-[13px] hover:bg-[#F4F5F8] ${categoryFilter === null ? 'text-[#D61CA8] font-bold' : 'text-[#0A0A0F]'
+              }`}
           >
             All Categories
           </button>
           {categories.map((cat) => (
             <button
-              key={cat.id}
+              key={cat.service_id}
               onClick={() => {
-                setCategoryFilter(cat.id);
+                setCategoryFilter(cat.service_id);
                 setShowCategoryDropdown(false);
               }}
-              className={`block w-full text-left px-4 py-2 text-[13px] hover:bg-[#F4F5F8] ${
+               className={`block w-full text-left px-4 py-2 text-[13px] hover:bg-[#F4F5F8] ${
                 categoryFilter === cat.id ? 'text-[#D61CA8] font-bold' : 'text-[#0A0A0F]'
               }`}
             >
-              {cat.name}
+              {cat.service_name}
             </button>
           ))}
         </div>
@@ -406,9 +417,8 @@ const Bookings = () => {
           <button
             onClick={() => fetchBookings(currentPage - 1)}
             disabled={currentPage === 1}
-            className={`px-3 py-1 rounded border border-[#EBEBEF] ${
-              currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#F4F5F8]'
-            }`}
+            className={`px-3 py-1 rounded border border-[#EBEBEF] ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#F4F5F8]'
+              }`}
           >
             ← Prev
           </button>
@@ -416,11 +426,10 @@ const Bookings = () => {
             <button
               key={p}
               onClick={() => fetchBookings(p)}
-              className={`px-3 py-1 rounded border ${
-                p === currentPage
-                  ? 'bg-[#D61CA8] text-white border-[#D61CA8]'
-                  : 'border-[#EBEBEF] hover:bg-[#F4F5F8]'
-              }`}
+              className={`px-3 py-1 rounded border ${p === currentPage
+                ? 'bg-[#D61CA8] text-white border-[#D61CA8]'
+                : 'border-[#EBEBEF] hover:bg-[#F4F5F8]'
+                }`}
             >
               {p}
             </button>
@@ -439,9 +448,8 @@ const Bookings = () => {
           <button
             onClick={() => fetchBookings(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className={`px-3 py-1 rounded border border-[#EBEBEF] ${
-              currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#F4F5F8]'
-            }`}
+            className={`px-3 py-1 rounded border border-[#EBEBEF] ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#F4F5F8]'
+              }`}
           >
             Next →
           </button>
@@ -479,11 +487,10 @@ const Bookings = () => {
               setActiveTab(tabKey);
               // fetchBookings will be triggered by useEffect
             }}
-            className={`px-[22px] py-[10px] text-[13px] rounded-[8px] transition-colors ${
-              activeTab === tabKey
-                ? 'bg-gradient-to-r from-[#D61CA8] to-[#8B2EF5] font-bold text-white'
-                : 'font-medium text-[#9090A0] hover:bg-[#F4F5F8]'
-            }`}
+            className={`px-[22px] py-[10px] text-[13px] rounded-[8px] transition-colors ${activeTab === tabKey
+              ? 'bg-gradient-to-r from-[#D61CA8] to-[#8B2EF5] font-bold text-white'
+              : 'font-medium text-[#9090A0] hover:bg-[#F4F5F8]'
+              }`}
           >
             {tabKey.charAt(0).toUpperCase() + tabKey.slice(1)} ({tabCounts[tabKey] ?? 0})
           </button>
