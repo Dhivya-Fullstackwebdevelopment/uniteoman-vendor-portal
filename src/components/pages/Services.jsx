@@ -24,16 +24,25 @@ const Services = () => {
   const [pricingData, setPricingData] = useState([]);
   const [serviceAreas, setServiceAreas] = useState([]);
   const [categoriesList, setCategoriesList] = useState([]);
+  const [categoryFilters, setCategoryFilters] = useState([]);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Category State (selected backend category_id)
+  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
 
   // Areas API State
   const [notAddedAreas, setNotAddedAreas] = useState([]);
 
-  // AI Pricing List & Active Banner Index State
-  const [aiPricingList, setAiPricingList] = useState([]);
-  const [aiNoteIndex, setAiNoteIndex] = useState(0);
+  // AI Pricing Note & Index State
+  const [aiPricingNote, setAiPricingNote] = useState(null);
+  const [currentAiIndex, setCurrentAiIndex] = useState(0);
 
-  // UI State
-  const [activeCategory, setActiveCategory] = useState('All');
+  // UI Modals State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editOfferingId, setEditOfferingId] = useState(null);
@@ -41,7 +50,7 @@ const Services = () => {
   // Area Selection & Modals State
   const [selectedAreaToAdd, setSelectedAreaToAdd] = useState('');
   const [showAddAreaInput, setShowAddAreaInput] = useState(false);
-  const [areaToDelete, setAreaToDelete] = useState(null); // Triggers delete popup modal
+  const [areaToDelete, setAreaToDelete] = useState(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -54,28 +63,18 @@ const Services = () => {
 
   const [availableSubCategories, setAvailableSubCategories] = useState([]);
 
-  // 1. Initial Load: Fetch Pricing Table, Categories, Working Areas & AI Pricing Insights
+  // 1. Initial Load
   useEffect(() => {
     fetchInitialData();
   }, []);
-
-  // Timer to rotate AI pricing notes every 6 seconds if multiple insights exist
-  useEffect(() => {
-    if (aiPricingList.length <= 1) return;
-    const interval = setInterval(() => {
-      setAiNoteIndex((prevIndex) => (prevIndex + 1) % aiPricingList.length);
-    }, 6000);
-    return () => clearInterval(interval);
-  }, [aiPricingList]);
 
   const fetchInitialData = async () => {
     setLoading(true);
     try {
       await Promise.all([
-        fetchPricingList(),
+        fetchPricingList({ page: 1, categoryId: null, aiIndex: 0 }),
         fetchCategories(),
-        fetchVendorAreas(),
-        fetchAiPricing()
+        fetchVendorAreas()
       ]);
     } catch (err) {
       console.error('Error fetching initial data:', err);
@@ -85,31 +84,63 @@ const Services = () => {
     }
   };
 
-  // GET: Fetch Dynamic AI Pricing Insights
-  const fetchAiPricing = async () => {
+  // Main API Call: Vendor Services, Pricing, Category Filters & AI Notes
+  const fetchPricingList = async ({ page = currentPage, categoryId = selectedCategoryId, aiIndex = currentAiIndex } = {}) => {
     try {
-      const result = await getData('/professionals/vendor/services/ai-pricing/');
-      if (result.status === 'success' && Array.isArray(result.data)) {
-        setAiPricingList(result.data);
-        setAiNoteIndex(0);
-      }
-    } catch (error) {
-      console.error('Failed to load AI pricing suggestions:', error);
-    }
-  };
+      setLoading(true);
 
-  // GET: Vendor Services & Pricing Table Data
-  const fetchPricingList = async () => {
-    try {
-      const result = await getData('/professionals/vendor/services-pricing/');
+      let url = `/professionals/vendor/services-pricing/?page=${page}&page_size=${pageSize}`;
+      if (categoryId !== null && categoryId !== undefined) {
+        url += `&category_id=${categoryId}`;
+      }
+      if (aiIndex !== null && aiIndex !== undefined) {
+        url += `&ai_index=${aiIndex}`;
+      }
+
+      const result = await getData(url);
       if (result.status === 'success') {
         setPricingData(result.data || []);
         setServiceAreas(result.service_areas || []);
+        if (result.category_filters) setCategoryFilters(result.category_filters);
+
+        // Map Pagination Meta
+        setCurrentPage(result.current_page || page);
+        setTotalPages(result.total_pages || 1);
+        setTotalCount(result.total_count || result.count || 0);
+        if (result.page_size) setPageSize(result.page_size);
+
+        // Map AI Pricing Note Meta
+        setAiPricingNote(result.ai_pricing_note || null);
       }
     } catch (error) {
       console.error('Failed to load services pricing:', error);
       toast.error(error?.response?.data?.message || 'Failed to fetch services list');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  // Handle Tab Switch for Categories
+  const handleCategoryFilterChange = (categoryId) => {
+    setSelectedCategoryId(categoryId);
+    setCurrentPage(1);
+    setCurrentAiIndex(0);
+    fetchPricingList({ page: 1, categoryId: categoryId, aiIndex: 0 });
+  };
+
+  // Cycle Next/Prev AI Note
+  const handleAiNoteNav = (direction) => {
+    if (!aiPricingNote) return;
+    let nextIndex = currentAiIndex;
+    if (direction === 'next' && aiPricingNote.has_next) {
+      nextIndex = currentAiIndex + 1;
+    } else if (direction === 'prev' && aiPricingNote.has_previous) {
+      nextIndex = Math.max(0, currentAiIndex - 1);
+    } else {
+      nextIndex = (currentAiIndex + 1) % (aiPricingNote.total || 1);
+    }
+    setCurrentAiIndex(nextIndex);
+    fetchPricingList({ page: currentPage, categoryId: selectedCategoryId, aiIndex: nextIndex });
   };
 
   // GET: All Categories & Sub-services Dropdown
@@ -155,10 +186,8 @@ const Services = () => {
       if (result.status === 'success') {
         toast.success(result.message || `${selectedAreaToAdd} added successfully!`);
         setShowAddAreaInput(false);
-        // Refresh pricing list, areas dropdown, and AI suggestions
         fetchPricingList();
         fetchVendorAreas();
-        fetchAiPricing();
       }
     } catch (error) {
       console.error('Failed to add area:', error);
@@ -172,10 +201,9 @@ const Services = () => {
     try {
       await deleteData(`/professionals/vendor/areas/${encodeURIComponent(areaToDelete)}/`);
       toast.success(`${areaToDelete} removed successfully`);
-      setAreaToDelete(null); // Close popup
+      setAreaToDelete(null);
       fetchPricingList();
       fetchVendorAreas();
-      fetchAiPricing();
     } catch (error) {
       console.error('Failed to delete area:', error);
       toast.error(error?.response?.data?.message || 'Failed to remove area');
@@ -196,7 +224,7 @@ const Services = () => {
     }));
   };
 
-  // Handle Sub-Category (Service Name) Change
+  // Handle Sub-Category Change
   const handleServiceTypeChange = (typeId) => {
     const selectedType = availableSubCategories.find((s) => String(s.id) === String(typeId));
     setFormData((prev) => ({
@@ -206,7 +234,7 @@ const Services = () => {
     }));
   };
 
-  // Modal Open Handlers
+  // Modal Handlers
   const handleOpenAddModal = () => {
     setIsEditing(false);
     setEditOfferingId(null);
@@ -254,7 +282,7 @@ const Services = () => {
     setIsAddModalOpen(true);
   };
 
-  // Toggle Active/Paused Status Directly
+  // Toggle Status
   const handleToggleStatus = async (item) => {
     const newStatus = item.status === 'active' ? 'paused' : 'active';
     try {
@@ -266,7 +294,6 @@ const Services = () => {
       if (result.status === 'success') {
         toast.success(`Service status changed to ${newStatus}`);
         fetchPricingList();
-        fetchAiPricing();
       }
     } catch (error) {
       console.error('Failed to toggle status:', error);
@@ -274,7 +301,7 @@ const Services = () => {
     }
   };
 
-  // POST Submit: Add or Edit Service
+  // Save Service Submit
   const handleSaveService = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -310,7 +337,6 @@ const Services = () => {
         toast.success(result.message || `Service ${isEditing ? 'updated' : 'added'} successfully!`);
         setIsAddModalOpen(false);
         fetchPricingList();
-        fetchAiPricing(); // Refresh AI suggestions after price change
       }
     } catch (error) {
       console.error('Failed to save service:', error);
@@ -320,26 +346,77 @@ const Services = () => {
     }
   };
 
-  // Cycle to next AI note on banner click
-  const handleNextAiNote = () => {
-    if (aiPricingList.length > 1) {
-      setAiNoteIndex((prev) => (prev + 1) % aiPricingList.length);
+  // Pagination UI Renderer
+  const renderPagination = () => {
+    if (totalCount === 0) return null;
+    const start = (currentPage - 1) * pageSize + 1;
+    const end = Math.min(currentPage * pageSize, totalCount);
+
+    const pageNumbers = [];
+    const maxVisible = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+    if (endPage - startPage < maxVisible - 1) {
+      startPage = Math.max(1, endPage - maxVisible + 1);
     }
+    for (let i = startPage; i <= endPage; i++) {
+      pageNumbers.push(i);
+    }
+
+    return (
+      <div className="flex items-center justify-between mt-4 text-[13px] text-[#6B7280]">
+        <div>
+          Showing {start}–{end} of {totalCount} services
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => fetchPricingList({ page: currentPage - 1 })}
+            disabled={currentPage === 1}
+            className={`px-3 py-1 rounded border border-[#EBEBEF] cursor-pointer ${
+              currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#F4F5F8]'
+            }`}
+          >
+            ← Prev
+          </button>
+          {pageNumbers.map((p) => (
+            <button
+              key={p}
+              onClick={() => fetchPricingList({ page: p })}
+              className={`px-3 py-1 rounded border cursor-pointer ${
+                p === currentPage
+                  ? 'bg-[#D61CA8] text-white border-[#D61CA8]'
+                  : 'border-[#EBEBEF] hover:bg-[#F4F5F8]'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+          {endPage < totalPages && (
+            <>
+              <span className="px-1">...</span>
+              <button
+                onClick={() => fetchPricingList({ page: totalPages })}
+                className="px-3 py-1 rounded border border-[#EBEBEF] hover:bg-[#F4F5F8] cursor-pointer"
+              >
+                {totalPages}
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => fetchPricingList({ page: currentPage + 1 })}
+            disabled={currentPage === totalPages}
+            className={`px-3 py-1 rounded border border-[#EBEBEF] cursor-pointer ${
+              currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#F4F5F8]'
+            }`}
+          >
+            Next →
+          </button>
+        </div>
+      </div>
+    );
   };
 
-  // Dynamic Unique Categories from fetched pricing data
-  const dynamicCategories = ['All', ...new Set(pricingData.map((s) => s.category_name))];
-
-  // Filter list by selected active tab
-  const filteredServices = pricingData.filter((s) => {
-    if (activeCategory === 'All') return true;
-    return s.category_name === activeCategory;
-  });
-
-  // Current active AI pricing item
-  const activeAiNote = aiPricingList[aiNoteIndex] || null;
-
-  // Dynamic grid column layout template
+  // Dynamic Grid Style Template
   const dynamicGridStyle = {
     gridTemplateColumns: `1.5fr 100px ${serviceAreas.map(() => '100px').join(' ')} 80px 90px`
   };
@@ -354,13 +431,13 @@ const Services = () => {
         </div>
         <div className="flex gap-[9px]">
           <button
-            onClick={handleNextAiNote}
-            title="Click to switch AI insight"
+            onClick={() => handleAiNoteNav('next')}
+            title="Click to cycle AI insight"
             className="flex items-center gap-[6px] bg-[#D61CA80D] border border-[#D61CA826] rounded-full px-[13px] py-[6px] hover:bg-[#D61CA81A] transition-all cursor-pointer"
           >
             <span>✨</span>
             <span className="text-[12px] font-semibold text-[#D61CA8]">
-              AI Pricing {aiPricingList.length > 0 ? `(${aiNoteIndex + 1}/${aiPricingList.length})` : ''}
+              AI Pricing {aiPricingNote ? `(${aiPricingNote.position || 1}/${aiPricingNote.total || 1})` : ''}
             </span>
           </button>
           <button 
@@ -372,40 +449,55 @@ const Services = () => {
         </div>
       </div>
 
-      {/* Category Pills */}
+      {/* Category Pills (Connected via Category Filters) */}
       <div className="flex gap-[8px] mb-[16px] flex-wrap">
-        {dynamicCategories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`px-[15px] py-[6px] rounded-full text-[12px] transition-all cursor-pointer ${
-              activeCategory === cat
-                ? 'bg-gradient-to-r from-[#D61CA8] to-[#8B2EF5] font-bold text-white'
-                : 'bg-white border-[1.5px] border-[#EBEBEF] font-medium text-[#9090A0]'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
+        {categoryFilters.map((cat) => {
+          const isSelected = selectedCategoryId === cat.category_id;
+          return (
+            <button
+              key={cat.category_id ?? 'all'}
+              onClick={() => handleCategoryFilterChange(cat.category_id)}
+              className={`px-[15px] py-[6px] rounded-full text-[12px] transition-all cursor-pointer ${
+                isSelected
+                  ? 'bg-gradient-to-r from-[#D61CA8] to-[#8B2EF5] font-bold text-white'
+                  : 'bg-white border-[1.5px] border-[#EBEBEF] font-medium text-[#9090A0]'
+              }`}
+            >
+              {cat.category_name} ({cat.count})
+            </button>
+          );
+        })}
       </div>
 
-      {/* AI Insight Banner - Integrated with /api/professionals/vendor/services/ai-pricing/ */}
-      {activeAiNote && (
+      {/* AI Insight Banner */}
+      {aiPricingNote && (
         <div 
-          onClick={handleNextAiNote}
-          className="flex items-center justify-between gap-[9px] bg-[#D61CA80A] border border-[#D61CA81F] rounded-[12px] px-[15px] py-[11px] mb-[16px] cursor-pointer hover:border-[#D61CA840] transition-all"
+          className="flex items-center justify-between gap-[9px] bg-[#D61CA80A] border border-[#D61CA81F] rounded-[12px] px-[15px] py-[11px] mb-[16px]"
         >
           <div className="flex items-center gap-[9px]">
             <span className="text-[16px]">✨</span>
             <div className="text-[13px] leading-relaxed text-[#6B7280]">
-              <strong className="text-[#D61CA8]">AI Insight:</strong> {activeAiNote.message}
+              <strong className="text-[#D61CA8]">AI Insight:</strong> {aiPricingNote.message}
             </div>
           </div>
-          {aiPricingList.length > 1 && (
-            <span className="text-[10px] font-bold text-[#9090A0] bg-white border border-[#EBEBEF] rounded-full px-2 py-0.5 whitespace-nowrap">
-              Next ➔
-            </span>
-          )}
+          <div className="flex items-center gap-1">
+            {aiPricingNote.has_previous && (
+              <button 
+                onClick={() => handleAiNoteNav('prev')}
+                className="text-[10px] font-bold text-[#9090A0] bg-white border border-[#EBEBEF] rounded-full px-2 py-0.5 hover:bg-[#F4F5F8] cursor-pointer"
+              >
+                ◀ Prev
+              </button>
+            )}
+            {aiPricingNote.has_next && (
+              <button 
+                onClick={() => handleAiNoteNav('next')}
+                className="text-[10px] font-bold text-[#9090A0] bg-white border border-[#EBEBEF] rounded-full px-2 py-0.5 hover:bg-[#F4F5F8] cursor-pointer"
+              >
+                Next ▶
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -426,10 +518,10 @@ const Services = () => {
           {/* Table Body */}
           {loading ? (
             <TableSkeleton />
-          ) : filteredServices.length === 0 ? (
+          ) : pricingData.length === 0 ? (
             <div className="p-8 text-center text-[13px] font-semibold text-[#9090A0]">No services found.</div>
           ) : (
-            filteredServices.map((s) => (
+            pricingData.map((s) => (
               <div key={s.offering_id} style={dynamicGridStyle} className="grid gap-2 px-[16px] py-[11px] border-b border-[#F8F8F8] items-center">
                 <div className="text-[13px] font-semibold text-[#0A0A0F] truncate">
                   ⚡ {s.service_name}
@@ -473,8 +565,11 @@ const Services = () => {
         </div>
       </div>
 
+      {/* Pagination Controls */}
+      {!loading && renderPagination()}
+
       {/* Service Areas Section */}
-      <div className="mt-[16px] text-[15px] font-bold text-[#0A0A0F] mb-[10px]">Service Areas</div>
+      <div className="mt-[20px] text-[15px] font-bold text-[#0A0A0F] mb-[10px]">Service Areas</div>
       <div className="flex flex-wrap gap-[8px] items-center">
         {serviceAreas.map((area) => (
           <div
