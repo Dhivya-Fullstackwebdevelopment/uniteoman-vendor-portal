@@ -28,6 +28,9 @@ const Services = () => {
   // Areas API State
   const [notAddedAreas, setNotAddedAreas] = useState([]);
 
+  // AI Pricing Note State
+  const [aiPricingNote, setAiPricingNote] = useState('');
+
   // UI State
   const [activeCategory, setActiveCategory] = useState('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -50,7 +53,7 @@ const Services = () => {
 
   const [availableSubCategories, setAvailableSubCategories] = useState([]);
 
-  // 1. Initial Load: Fetch Pricing Table, Categories, & Working Areas API
+  // 1. Initial Load: Fetch Pricing Table, Categories, Working Areas & Vendor Services APIs
   useEffect(() => {
     fetchInitialData();
   }, []);
@@ -58,7 +61,12 @@ const Services = () => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      await Promise.all([fetchPricingList(), fetchCategories(), fetchVendorAreas()]);
+      await Promise.all([
+        fetchPricingList(),
+        fetchCategories(),
+        fetchVendorAreas(),
+        fetchVendorServices()
+      ]);
     } catch (err) {
       console.error('Error fetching initial data:', err);
       toast.error('Failed to load services data. Please refresh.');
@@ -67,7 +75,19 @@ const Services = () => {
     }
   };
 
-  // GET: Vendor Services & Pricing
+  // GET: Vendor Services & Dynamic AI Pricing Note
+  const fetchVendorServices = async () => {
+    try {
+      const result = await getData('/professionals/vendor/services/');
+      if (result.status === 'success' && result.ai_pricing_note) {
+        setAiPricingNote(result.ai_pricing_note.message || '');
+      }
+    } catch (error) {
+      console.error('Failed to load vendor services AI note:', error);
+    }
+  };
+
+  // GET: Vendor Services & Pricing Table Data
   const fetchPricingList = async () => {
     try {
       const result = await getData('/professionals/vendor/services-pricing/');
@@ -93,6 +113,7 @@ const Services = () => {
     }
   };
 
+  // GET: Fetch Available and Not-Added Areas for Dropdown
   const fetchVendorAreas = async () => {
     try {
       const result = await getData('/professionals/vendor/areas/');
@@ -275,6 +296,7 @@ const Services = () => {
         toast.success(result.message || `Service ${isEditing ? 'updated' : 'added'} successfully!`);
         setIsAddModalOpen(false);
         fetchPricingList();
+        fetchVendorServices(); // Refresh AI pricing note
       }
     } catch (error) {
       console.error('Failed to save service:', error);
@@ -337,13 +359,15 @@ const Services = () => {
         ))}
       </div>
 
-      {/* AI Insight Banner */}
-      <div className="flex gap-[9px] bg-[#D61CA80A] border border-[#D61CA81F] rounded-[12px] px-[15px] py-[11px] mb-[16px]">
-        <span>✨</span>
-        <div className="text-[13px] leading-relaxed text-[#6B7280]">
-          <strong className="text-[#D61CA8]">AI:</strong> Your AC Deep Cleaning OMR 15 is market-rate. MSQ Hills avg is OMR 18 — you could charge more there.
+      {/* AI Insight Banner - Dynamic Message Mapping */}
+      {aiPricingNote && (
+        <div className="flex gap-[9px] bg-[#D61CA80A] border border-[#D61CA81F] rounded-[12px] px-[15px] py-[11px] mb-[16px]">
+          <span>✨</span>
+          <div className="text-[13px] leading-relaxed text-[#6B7280]">
+            <strong className="text-[#D61CA8]">AI:</strong> {aiPricingNote}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Services Table Container */}
       <div className="bg-white rounded-[14px] overflow-x-auto shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
