@@ -28,8 +28,9 @@ const Services = () => {
   // Areas API State
   const [notAddedAreas, setNotAddedAreas] = useState([]);
 
-  // AI Pricing Note State
-  const [aiPricingNote, setAiPricingNote] = useState('');
+  // AI Pricing List & Active Banner Index State
+  const [aiPricingList, setAiPricingList] = useState([]);
+  const [aiNoteIndex, setAiNoteIndex] = useState(0);
 
   // UI State
   const [activeCategory, setActiveCategory] = useState('All');
@@ -53,10 +54,19 @@ const Services = () => {
 
   const [availableSubCategories, setAvailableSubCategories] = useState([]);
 
-  // 1. Initial Load: Fetch Pricing Table, Categories, Working Areas & Vendor Services APIs
+  // 1. Initial Load: Fetch Pricing Table, Categories, Working Areas & AI Pricing Insights
   useEffect(() => {
     fetchInitialData();
   }, []);
+
+  // Timer to rotate AI pricing notes every 6 seconds if multiple insights exist
+  useEffect(() => {
+    if (aiPricingList.length <= 1) return;
+    const interval = setInterval(() => {
+      setAiNoteIndex((prevIndex) => (prevIndex + 1) % aiPricingList.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [aiPricingList]);
 
   const fetchInitialData = async () => {
     setLoading(true);
@@ -65,7 +75,7 @@ const Services = () => {
         fetchPricingList(),
         fetchCategories(),
         fetchVendorAreas(),
-        fetchVendorServices()
+        fetchAiPricing()
       ]);
     } catch (err) {
       console.error('Error fetching initial data:', err);
@@ -75,15 +85,16 @@ const Services = () => {
     }
   };
 
-  // GET: Vendor Services & Dynamic AI Pricing Note
-  const fetchVendorServices = async () => {
+  // GET: Fetch Dynamic AI Pricing Insights
+  const fetchAiPricing = async () => {
     try {
-      const result = await getData('/professionals/vendor/services/');
-      if (result.status === 'success' && result.ai_pricing_note) {
-        setAiPricingNote(result.ai_pricing_note.message || '');
+      const result = await getData('/professionals/vendor/services/ai-pricing/');
+      if (result.status === 'success' && Array.isArray(result.data)) {
+        setAiPricingList(result.data);
+        setAiNoteIndex(0);
       }
     } catch (error) {
-      console.error('Failed to load vendor services AI note:', error);
+      console.error('Failed to load AI pricing suggestions:', error);
     }
   };
 
@@ -144,9 +155,10 @@ const Services = () => {
       if (result.status === 'success') {
         toast.success(result.message || `${selectedAreaToAdd} added successfully!`);
         setShowAddAreaInput(false);
-        // Refresh pricing list & areas dropdown
+        // Refresh pricing list, areas dropdown, and AI suggestions
         fetchPricingList();
         fetchVendorAreas();
+        fetchAiPricing();
       }
     } catch (error) {
       console.error('Failed to add area:', error);
@@ -163,6 +175,7 @@ const Services = () => {
       setAreaToDelete(null); // Close popup
       fetchPricingList();
       fetchVendorAreas();
+      fetchAiPricing();
     } catch (error) {
       console.error('Failed to delete area:', error);
       toast.error(error?.response?.data?.message || 'Failed to remove area');
@@ -253,6 +266,7 @@ const Services = () => {
       if (result.status === 'success') {
         toast.success(`Service status changed to ${newStatus}`);
         fetchPricingList();
+        fetchAiPricing();
       }
     } catch (error) {
       console.error('Failed to toggle status:', error);
@@ -296,13 +310,20 @@ const Services = () => {
         toast.success(result.message || `Service ${isEditing ? 'updated' : 'added'} successfully!`);
         setIsAddModalOpen(false);
         fetchPricingList();
-        fetchVendorServices(); // Refresh AI pricing note
+        fetchAiPricing(); // Refresh AI suggestions after price change
       }
     } catch (error) {
       console.error('Failed to save service:', error);
       toast.error(error?.response?.data?.message || `Failed to ${isEditing ? 'update' : 'add'} service`);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Cycle to next AI note on banner click
+  const handleNextAiNote = () => {
+    if (aiPricingList.length > 1) {
+      setAiNoteIndex((prev) => (prev + 1) % aiPricingList.length);
     }
   };
 
@@ -314,6 +335,9 @@ const Services = () => {
     if (activeCategory === 'All') return true;
     return s.category_name === activeCategory;
   });
+
+  // Current active AI pricing item
+  const activeAiNote = aiPricingList[aiNoteIndex] || null;
 
   // Dynamic grid column layout template
   const dynamicGridStyle = {
@@ -329,10 +353,16 @@ const Services = () => {
           <div className="text-[14px] leading-none text-[#9090A0] mt-[4px]">Set per-area pricing · Admin sets floor/cap</div>
         </div>
         <div className="flex gap-[9px]">
-          <div className="flex items-center gap-[6px] bg-[#D61CA80D] border border-[#D61CA826] rounded-full px-[13px] py-[6px]">
+          <button
+            onClick={handleNextAiNote}
+            title="Click to switch AI insight"
+            className="flex items-center gap-[6px] bg-[#D61CA80D] border border-[#D61CA826] rounded-full px-[13px] py-[6px] hover:bg-[#D61CA81A] transition-all cursor-pointer"
+          >
             <span>✨</span>
-            <span className="text-[12px] font-semibold text-[#D61CA8]">AI Pricing</span>
-          </div>
+            <span className="text-[12px] font-semibold text-[#D61CA8]">
+              AI Pricing {aiPricingList.length > 0 ? `(${aiNoteIndex + 1}/${aiPricingList.length})` : ''}
+            </span>
+          </button>
           <button 
             onClick={handleOpenAddModal}
             className="px-[16px] py-[8px] bg-gradient-to-r from-[#D61CA8] to-[#8B2EF5] rounded-[9px] text-[12px] font-bold text-white shadow-sm hover:opacity-95 transition-all cursor-pointer"
@@ -359,13 +389,23 @@ const Services = () => {
         ))}
       </div>
 
-      {/* AI Insight Banner - Dynamic Message Mapping */}
-      {aiPricingNote && (
-        <div className="flex gap-[9px] bg-[#D61CA80A] border border-[#D61CA81F] rounded-[12px] px-[15px] py-[11px] mb-[16px]">
-          <span>✨</span>
-          <div className="text-[13px] leading-relaxed text-[#6B7280]">
-            <strong className="text-[#D61CA8]">AI:</strong> {aiPricingNote}
+      {/* AI Insight Banner - Integrated with /api/professionals/vendor/services/ai-pricing/ */}
+      {activeAiNote && (
+        <div 
+          onClick={handleNextAiNote}
+          className="flex items-center justify-between gap-[9px] bg-[#D61CA80A] border border-[#D61CA81F] rounded-[12px] px-[15px] py-[11px] mb-[16px] cursor-pointer hover:border-[#D61CA840] transition-all"
+        >
+          <div className="flex items-center gap-[9px]">
+            <span className="text-[16px]">✨</span>
+            <div className="text-[13px] leading-relaxed text-[#6B7280]">
+              <strong className="text-[#D61CA8]">AI Insight:</strong> {activeAiNote.message}
+            </div>
           </div>
+          {aiPricingList.length > 1 && (
+            <span className="text-[10px] font-bold text-[#9090A0] bg-white border border-[#EBEBEF] rounded-full px-2 py-0.5 whitespace-nowrap">
+              Next ➔
+            </span>
+          )}
         </div>
       )}
 
